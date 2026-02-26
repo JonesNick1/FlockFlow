@@ -479,7 +479,11 @@
 
   <!-- ADMIN VIEW -->
   <div id="viewAdmin" style="display:none;">
-    <div class="card">
+   <button class="btn btnSmall" id="sbSignIn">Supabase Sign In</button>
+   <button class="btn btnSmall" id="sbSignOut">Supabase Sign Out</button>
+   <button class="btn btnSmall" id="sbPull">Sync From Cloud</button> 
+
+   <div class="card">
       <h3 class="sectionTitle">Admin</h3>
       <div class="muted">Edit birds placed, feed rates, and clear data.</div>
 
@@ -668,6 +672,21 @@ async function pushSettingsToCloud() {
   alert("Pushed settings to cloud.");
 }
 
+async function sbSignIn() {
+  const email = prompt("Supabase email:");
+  const password = prompt("Supabase password:");
+  if (!email || !password) return;
+
+  const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+  if (error) alert("Sign in failed:\n" + error.message);
+  else alert("Signed in ✅");
+}
+
+async function sbSignOut() {
+  await supabaseClient.auth.signOut();
+  alert("Signed out.");
+}
+
 // Optional: simple sign-in helpers (put buttons in Admin if you want)
 async function supabaseSignIn() {
   if (!supabaseClient) return;
@@ -820,6 +839,9 @@ async function supabaseSignOut() {
   $("tabFeed").onclick = ()=>showTab("tabFeed");
   $("tabSummary").onclick = ()=>showTab("tabSummary");
   $("tabAdmin").onclick = ()=>showTab("tabAdmin");
+  $("sbSignIn").onclick = sbSignIn;
+  $("sbSignOut").onclick = sbSignOut;
+  $("sbPull").onclick = pullSettingsFromCloud;
 
   $("toggleTheme").onclick = ()=>{
     theme = (theme === "dark") ? "light" : "dark";
