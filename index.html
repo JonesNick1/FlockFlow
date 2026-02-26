@@ -1,0 +1,1498 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>House Logger (Offline)</title>
+
+  <style>
+    :root{
+      --panel: #e9eef9;
+      --panelBorder: #b7c7ee;
+      --shadow: 0 2px 10px rgba(0,0,0,0.06);
+      --bg: #f3f5f8;
+      --text: #141414;
+      --muted: #555;
+      --border: #d0d0d0;
+      --card: #ffffff;
+      --card2: #f7f9ff;
+      --btn: #f6f6f6;
+      --btnBorder: #8d8d8d;
+      --thead: #eef1f6;
+      --pill: #fff7e6; 
+      --pillBorder: #e0b45a;
+      --dangerBg: #ffecec;
+      --dangerBorder: #c66;
+      --accent: #2b6cff;
+      --accentBorder: #1f4fbf;
+      --softAccent: #eaf1ff;
+      --softAccentBorder: #2b6cff;
+    }
+    [data-theme="dark"]{
+      --bg: #0f141a;
+      --text: #e9edf3;
+      --muted: #a9b3bf;
+      --border: #2b3340;
+      --card: #151c25;
+      --card2: #121a24;
+      --btn: #1b2430;
+      --btnBorder: #3a475a;
+      --thead: #1a2431;
+      --pill: #2b2416;
+      --pillBorder: #8a6a2a;
+      --dangerBg: #3a1b1b;
+      --dangerBorder: #b05a5a;
+      --softAccent: rgba(43,108,255,0.18);
+      --softAccentBorder: rgba(43,108,255,0.75);
+      --panel: #101a26;
+      --panelBorder: #2f4363;
+      --shadow: 0 2px 10px rgba(0,0,0,0.35);
+    }
+
+    body{
+      font-family: "Segoe UI", Arial, sans-serif;
+      margin: 16px;
+      background: var(--bg);
+      color: var(--text);
+    }
+    .wrap{ max-width:1200px; margin:0 auto; }
+    .row{ display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+    .muted{ color: var(--muted); }
+    .big{ font-size:28px; font-weight:800; }
+    .kpi{ font-size:18px; font-weight:800; }
+
+    .card{
+      border:1px solid var(--border);
+      border-radius:14px;
+      padding:14px;
+      margin:12px 0;
+      background: var(--card);
+      box-shadow: var(--shadow);
+    }
+    /* Force "inner cards" to stay white, even when nested inside a blue panel */
+    .cardInner{
+     background: var(--card) !important;
+     border-color: var(--border) !important;
+    }
+    .cardPop{
+      background: var(--panel);
+      border-color: var(--panelBorder);
+    }
+
+    .btn{
+      cursor:pointer;
+      user-select:none;
+      border:1px solid var(--btnBorder);
+      background: var(--btn);
+      border-radius:14px;
+      padding:14px 16px;
+      font-size:20px;
+      color: var(--text);
+    }
+    .btn:active{ transform:scale(0.98); }
+    .btnWide{ min-width:170px; }
+    .btnSmall{ padding:10px 12px; font-size:16px; border-radius:12px; }
+
+    input{
+      font-size:16px;
+      padding:10px;
+      border-radius:10px;
+      border:1px solid var(--border);
+      background: color-mix(in srgb, var(--card) 92%, var(--bg) 8%);
+      color: var(--text);
+    }
+
+    .danger{ background: var(--dangerBg); border-color: var(--dangerBorder); }
+
+    .nav{ display:flex; gap:8px; flex-wrap:wrap; margin: 10px 0; }
+    .nav .btn{ padding:10px 12px; font-size:16px; }
+    .topBar{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      margin: 10px 0;
+    }
+    .modeBtn{
+      margin-left:auto;
+    }
+    .twoCol{ display:grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 980px) { .twoCol { grid-template-columns: 1fr; } }
+
+    table{ border-collapse: collapse; width:100%; }
+    td, th{
+      border:1px solid var(--border);
+      padding:10px;
+      text-align:left;
+    }
+    th {
+      text-align: center;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+    }
+    th{ background: var(--thead); }
+
+    .pill{
+      display:inline-block;
+      padding:6px 10px;
+      border-radius:999px;
+      border:1px solid var(--pillBorder);
+      background: var(--pill);
+      font-size:14px;
+    }
+    .pill.ok{ background: color-mix(in srgb, #00ff6a 16%, var(--card) 84%); border-color: color-mix(in srgb, #00ff6a 35%, var(--border) 65%); }
+
+    .selectedBlue{
+      background: var(--accent) !important;
+      color: white !important;
+      border-color: var(--accentBorder) !important;
+    }
+
+    .softBlue{
+      background: var(--panel);
+      border-color: var(--panelBorder);
+    }
+
+    .disabled{ opacity:0.45; pointer-events:none; }
+
+    /* Eggs page */
+    .boxGrid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(76px,1fr)); gap:10px; }
+    .boxBtn{ width:100%; min-width:0; font-size:16px; padding:10px; border-radius:12px; }
+    /* Slightly bigger nest buttons for Pen 2 and Pen 3 only */
+    #pen2Boxes .boxBtn,
+    #pen3Boxes .boxBtn{
+      font-size: 18px;
+      padding: 12px 10px;
+    }
+
+    /* Slightly wider grid sizing so buttons don't look cramped */
+    #pen2Boxes,
+    #pen3Boxes{
+      grid-template-columns: repeat(auto-fit, minmax(88px, 1fr));
+    }
+    .holesGrid{ display:grid; grid-template-columns:repeat(5,minmax(90px,1fr)); gap:10px; }
+    @media (max-width:700px){ .holesGrid{ grid-template-columns:repeat(4,minmax(80px,1fr)); } }
+
+    .sectionTitle{ margin:0 0 6px; }
+    .houseLabel{ font-weight:800; margin-bottom:8px; }
+  </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+
+<body>
+<div class="wrap">
+  <h2>House Logger (Offline)</h2>
+  <div class="muted">Offline logging for eggs, floor eggs, egg defects, mortality, and feed. Export CSV anytime.</div>
+
+  <div class="nav">
+    <button class="btn" id="tabEggs">Eggs</button>
+    <button class="btn" id="tabMortality">Mortality</button>
+    <button class="btn" id="tabFeed">Feed</button>
+    <button class="btn" id="tabSummary">Summary</button>
+    <button class="btn" id="tabAdmin" style="display:none;">Admin</button>
+    <button class="btn modeBtn" id="toggleTheme" title="Toggle Light or Dark">Mode</button>
+  </div>
+
+  <div class="card cardPop">
+    <div class="row">
+      <div>
+        <div class="muted">Date</div>
+        <input id="date" type="date" />
+      </div>
+
+      <div>
+        <div class="muted">Caretaker</div>
+        <input id="caretaker" type="text" placeholder="Name" />
+      </div>
+
+      <div>
+        <div class="muted">Round (Egg Collection)</div>
+        <div class="big" id="round">1</div>
+      </div>
+
+      <div>
+        <div class="muted">Admin</div>
+        <div class="row" style="gap:8px;">
+          <span class="pill" id="adminStatus">Locked</span>
+          <button class="btn btnSmall" id="btnUnlock">Unlock</button>
+          <button class="btn btnSmall" id="btnLock" style="display:none;">Lock</button>
+        </div>
+      </div>
+
+      <div style="min-width:240px;">
+        <div class="muted">Active Box</div>
+        <div class="big" id="activeBox">(none)</div>
+      </div>
+
+      <div style="min-width:300px;">
+        <div class="muted">Last Logged</div>
+        <div class="kpi" id="lastLogged">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- EGGS VIEW -->
+  <div id="viewEggs">
+    <div class="card cardPop">
+      <h3 class="sectionTitle">Nest Eggs</h3>
+      <div class="muted">Tap the box you are at, then tap holes (1–10).</div>
+
+      <div class="twoCol" style="margin-top:12px;">
+        <div class="card cardInner" style="margin:0;">
+          <div class="houseLabel">Pen 1 (N01–N04)</div>
+          <div class="boxGrid" id="pen1Boxes"></div>
+        </div>
+
+        <div class="card cardInner" style="margin:0;">
+          <div class="houseLabel">Pen 2 (N05–N14)</div>
+          <div class="boxGrid" id="pen2Boxes"></div>
+        </div>
+
+        <div class="card cardInner" style="margin:0;">
+          <div class="houseLabel">Pen 4 (S01–S04)</div>
+          <div class="boxGrid" id="pen4Boxes"></div>
+        </div>
+
+        <div class="card cardInner" style="margin:0;">
+          <div class="houseLabel">Pen 3 (S05–S14)</div>
+          <div class="boxGrid" id="pen3Boxes"></div>
+        </div>
+      </div>
+
+      <h4 style="margin: 14px 0 8px;">Holes (1–10)</h4>
+      <div class="holesGrid" id="holes"></div>
+
+      <div class="row" style="margin-top:14px;">
+        <button class="btn btnWide" id="clearBox">Clear Box</button>
+        <button class="btn btnWide" id="nextRound">Next Round</button>
+        <button class="btn btnWide" id="undoNest">Undo Nest</button>
+      </div>
+    </div>
+
+    <div class="card cardPop">
+      <h3 class="sectionTitle">Floor Eggs + Egg Defects</h3>
+      <div class="muted">Select Pen, then tap buttons. Defects are a subset of total eggs.</div>
+
+      <div class="row" style="gap:8px; margin-top:10px;">
+        <button class="btn btnSmall" id="eggPen1">Pen 1</button>
+        <button class="btn btnSmall" id="eggPen2">Pen 2</button>
+        <button class="btn btnSmall" id="eggPen3">Pen 3</button>
+        <button class="btn btnSmall" id="eggPen4">Pen 4</button>
+      </div>
+
+      <div class="twoCol" style="margin-top:12px;">
+        <div class="card cardInner" style="margin:0;">
+          <h4 class="sectionTitle">Floor Eggs</h4>
+          <div class="row" style="margin-top:10px;">
+            <button class="btn btnWide" id="floorPlus">+1 Floor Egg</button>
+            <button class="btn btnWide" id="undoFloor">Undo Floor</button>
+          </div>
+        </div>
+
+        <div class="card cardInner" style="margin:0;">
+          <h4 class="sectionTitle">Defects</h4>
+          <div class="row" style="margin-top:10px;">
+            <button class="btn btnWide" id="defDirty">+1 Dirty</button>
+            <button class="btn btnWide" id="defCrack">+1 Cracked</button>
+          </div>
+          <div class="row" style="margin-top:10px;">
+            <button class="btn btnWide" id="defDouble">+1 Double</button>
+            <button class="btn btnWide" id="defCull">+1 Cull</button>
+          </div>
+          <div class="row" style="margin-top:10px;">
+            <button class="btn btnWide" id="undoDefect">Undo Defect</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:12px;">
+        <h4 class="sectionTitle">Egg Totals (Selected Pen, Date, Current Round)</h4>
+        <div class="row" style="margin-top:8px;">
+          <div class="kpi">Nest: <span id="penNest">0</span></div>
+          <div class="kpi">Floor: <span id="penFloor">0</span></div>
+          <div class="kpi">Total: <span id="penTotalEggs">0</span></div>
+        </div>
+        <div class="row" style="margin-top:8px;">
+          <div class="kpi">Dirty: <span id="penDirty">0</span></div>
+          <div class="kpi">Cracked: <span id="penCrack">0</span></div>
+          <div class="kpi">Double: <span id="penDouble">0</span></div>
+          <div class="kpi">Cull: <span id="penCull">0</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MORTALITY VIEW -->
+  <div id="viewMortality" style="display:none;">
+    <div class="twoCol">
+      <div class="card">
+        <h3 class="sectionTitle">Mortality</h3>
+        <div class="muted">Select a pen, then log dead or culled by sex.</div>
+
+        <div class="row" style="gap:8px; margin-top:8px;">
+          <button class="btn btnSmall" id="mortPen1">Pen 1</button>
+          <button class="btn btnSmall" id="mortPen2">Pen 2</button>
+          <button class="btn btnSmall" id="mortPen3">Pen 3</button>
+          <button class="btn btnSmall" id="mortPen4">Pen 4</button>
+          <button class="btn btnSmall" id="mortPen5">Spares (M)</button>
+        </div>
+
+        <div class="card softBlue" style="margin-top:12px;">
+          <h4 class="sectionTitle">Log Mortality</h4>
+          <div class="row" style="margin-top:8px;">
+            <button class="btn btnWide" id="deadM">+1 Dead Male</button>
+            <button class="btn btnWide" id="deadF">+1 Dead Female</button>
+          </div>
+          <div class="row" style="margin-top:8px;">
+            <button class="btn btnWide" id="cullM">+1 Culled Male</button>
+            <button class="btn btnWide" id="cullF">+1 Culled Female</button>
+          </div>
+          <div class="row" style="margin-top:8px;">
+            <button class="btn btnWide" id="undoMort">Undo</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card cardPop">
+        <h3 class="sectionTitle">Inventory and Totals</h3>
+        <div class="muted">Inventory uses Birds Placed (Admin) minus cumulative mortality through selected Date.</div>
+
+        <div class="card" style="margin-top:12px;">
+          <h4 class="sectionTitle">Current Inventory (Selected Pen and Date)</h4>
+          <div class="row">
+            <div class="kpi">Male: <span id="invM">0</span></div>
+            <div class="kpi">Female: <span id="invF">0</span></div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:12px;">
+          <h4 class="sectionTitle">Today’s Mortality Totals (Selected Pen and Date)</h4>
+          <table>
+            <thead>
+              <tr>
+                <th>Dead Male</th><th>Dead Female</th><th>Culled Male</th><th>Culled Female</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td id="dayDeadM">0</td><td id="dayDeadF">0</td><td id="dayCullM">0</td><td id="dayCullF">0</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- FEED VIEW -->
+  <div id="viewFeed" style="display:none;">
+    <div class="card">
+      <h3 class="sectionTitle">Feed to Weigh (lb, rounded to nearest tenth)</h3>
+      <div class="muted">Uses inventory at selected Date and the most recent feed rates on or before that date.</div>
+
+      <div class="card" style="margin-top:12px;">
+        <table>
+          <thead>
+            <tr>
+              <th rowspan="2">Pen</th>
+              <th colspan="3">Male</th>
+              <th colspan="3">Female</th>
+            </tr>
+            <tr>
+              <th>Inventory</th><th>Rate (lb per bird)</th><th>Feed (lb)</th>
+              <th>Inventory</th><th>Rate (lb per bird)</th><th>Feed (lb)</th>
+            </tr>
+          </thead>
+          <tbody id="feedTable"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- SUMMARY VIEW -->
+  <div id="viewSummary" style="display:none;">
+    <div class="card">
+      <div class="row" style="justify-content:space-between;">
+        <div>
+          <h3 class="sectionTitle">Summary</h3>
+          <div class="muted">Daily uses selected Date. Weekly uses the week containing selected Date.</div>
+        </div>
+        <div class="row">
+          <button class="btn btnSmall" id="sumDaily">Daily</button>
+          <button class="btn btnSmall" id="sumWeekly">Weekly</button>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:12px;">
+        <h4 class="sectionTitle" id="sumEggTitle">Egg Summary</h4>
+        <table>
+          <thead>
+            <tr>
+              <th>Pen</th><th>Nest</th><th>Floor</th><th>Total Eggs</th>
+              <th>Dirty</th><th>Cracked</th><th>Double</th><th>Cull</th>
+            </tr>
+          </thead>
+          <tbody id="eggSummaryTable"></tbody>
+        </table>
+      </div>
+
+      <div class="card" style="margin-top:12px;">
+        <h4 class="sectionTitle" id="sumMortTitle">Mortality Summary</h4>
+        <table>
+          <thead>
+            <tr><th>Pen</th><th>Dead Male</th><th>Dead Female</th><th>Culled Male</th><th>Culled Female</th></tr>
+          </thead>
+          <tbody id="mortSummaryTable"></tbody>
+        </table>
+      </div>
+
+      <div class="card" style="margin-top:12px;">
+        <h4 class="sectionTitle" id="sumFeedTitle">Feed Summary (computed)</h4>
+        <div class="muted" style="margin-bottom:8px;">Weekly sums 7 days of computed feed, based on inventory and rates each day.</div>
+        <table>
+          <thead>
+            <tr>
+              <th rowspan="2">Pen</th>
+              <th colspan="2">Male Feed (lb)</th>
+              <th colspan="2">Female Feed (lb)</th>
+              <th rowspan="2">Total Feed (lb)</th>
+            </tr>
+            <tr>
+              <th>Amount</th><th>Rate source</th>
+              <th>Amount</th><th>Rate source</th>
+            </tr>
+          </thead>
+          <tbody id="feedSummaryTable"></tbody>
+        </table>
+      </div>
+
+      <div class="card" style="margin-top:12px;">
+        <h4 class="sectionTitle">Exports</h4>
+        <div class="row">
+          <button class="btn btnWide" id="exportDetail">Export Detail CSV</button>
+          <button class="btn btnWide" id="exportSummary">Export Summary CSV</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADMIN VIEW -->
+  <div id="viewAdmin" style="display:none;">
+    <div class="card">
+      <h3 class="sectionTitle">Admin</h3>
+      <div class="muted">Edit birds placed, feed rates, and clear data.</div>
+
+    <div class="card softBlue" style="margin-top:12px;">
+      <h4 class="sectionTitle">Cloud Sync (Supabase)</h4>
+      <div class="muted">Tablet can pull settings. Only signed-in admins can push changes.</div>
+      <div class="row" style="margin-top:10px;">
+        <button class="btn btnSmall" id="btnCloudPull">Sync From Cloud</button>
+        <button class="btn btnSmall" id="btnCloudSignIn">Sign In</button>
+        <button class="btn btnSmall" id="btnCloudSignOut">Sign Out</button>
+      </div>
+    </div>
+
+      <div class="card cardPop">
+        <h4 class="sectionTitle">Birds Placed (management only)</h4>
+        <table>
+          <thead>
+            <tr><th>Pen</th><th>Placed Male</th><th>Placed Female</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Pen 1</td><td><input id="placed1M" type="number" step="1"></td><td><input id="placed1F" type="number" step="1"></td></tr>
+            <tr><td>Pen 2</td><td><input id="placed2M" type="number" step="1"></td><td><input id="placed2F" type="number" step="1"></td></tr>
+            <tr><td>Pen 3</td><td><input id="placed3M" type="number" step="1"></td><td><input id="placed3F" type="number" step="1"></td></tr>
+            <tr><td>Pen 4</td><td><input id="placed4M" type="number" step="1"></td><td><input id="placed4F" type="number" step="1"></td></tr>
+            <tr><td>Spares</td><td><input id="placed5M" type="number" step="1"></td><td><input id="placed5F" type="number" step="1" disabled></td></tr>
+          </tbody>
+        </table>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn btnWide" id="savePlaced">Save Birds Placed</button>
+        </div>
+      </div>
+
+      <div class="card cardPop">
+        <h4 class="sectionTitle">Feed Rates (lb per bird per day)</h4>
+        <div class="muted">Changes are logged with timestamp for history.</div>
+        <table>
+          <thead>
+            <tr><th>Pen</th><th>Rate Male</th><th>Rate Female</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Pen 1</td><td><input id="rate1M" type="number" step="0.001"></td><td><input id="rate1F" type="number" step="0.001"></td></tr>
+            <tr><td>Pen 2</td><td><input id="rate2M" type="number" step="0.001"></td><td><input id="rate2F" type="number" step="0.001"></td></tr>
+            <tr><td>Pen 3</td><td><input id="rate3M" type="number" step="0.001"></td><td><input id="rate3F" type="number" step="0.001"></td></tr>
+            <tr><td>Pen 4</td><td><input id="rate4M" type="number" step="0.001"></td><td><input id="rate4F" type="number" step="0.001"></td></tr>
+            <tr><td>Spares</td><td><input id="rate5M" type="number" step="0.001"></td><td><input id="rate5F" type="number" step="0.001" disabled></td></tr>
+          </tbody>
+        </table>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn btnWide" id="saveRates">Save Feed Rates</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h4 class="sectionTitle">Danger Zone</h4>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn btnWide danger" id="clearAll">Clear ALL Data</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h4 class="sectionTitle">Change Admin PIN</h4>
+        <div class="muted">Default PIN is 1234.</div>
+        <div class="row" style="margin-top:10px;">
+          <input id="newPin" type="password" placeholder="New PIN" />
+          <button class="btn btnWide" id="savePin">Save PIN</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<script>
+(() => {
+  const STORAGE_KEY = "house_logger_v8_records";
+  const STATE_KEY   = "house_logger_v8_state";
+  const DEFAULT_PIN = "1234";
+
+  const LEGACY_KEYS = [
+    { records: "house_logger_v7_records", state: "house_logger_v7_state" },
+    { records: "house_logger_v6_records", state: "house_logger_v6_state" }
+  ];
+
+// =================== SUPABASE (SETTINGS SYNC ONLY) ===================
+const SUPABASE_URL = "PASTE_YOUR_PROJECT_URL";
+const SUPABASE_ANON_KEY = "PASTE_YOUR_ANON_KEY";
+const SETTINGS_ROW_ID = "main";
+
+const supabaseEnabled =
+  SUPABASE_URL.startsWith("http") && SUPABASE_ANON_KEY.length > 20;
+
+const supabaseClient = supabaseEnabled
+  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+  : null;
+
+// Make this return EXACTLY your local settings shape.
+// You will edit this to match your current variables/objects.
+function getLocalSettingsObject() {
+  return {
+    placed: placed, // <-- change this line if your variable name differs
+    rates: rates    // <-- change this line if your variable name differs
+  };
+}
+
+// Apply cloud settings into your local variables/objects.
+// You will edit this to match your current variables/objects, then call your normal re-render functions.
+function applySettingsObjectToLocal(obj) {
+  if (!obj) return;
+
+  if (obj.placed) placed = obj.placed; // <-- adjust variable names if needed
+  if (obj.rates)  rates  = obj.rates;
+
+  // After applying, call whatever your file already uses to refresh UI:
+  // e.g. updateFeedTable(); updateInventory(); renderSummary(); saveState(); etc.
+  if (typeof saveState === "function") saveState();
+  if (typeof refreshAll === "function") refreshAll();
+  if (typeof renderFeed === "function") renderFeed();
+  if (typeof renderSummary === "function") renderSummary();
+}
+
+// Pull latest settings from cloud (no login required)
+async function pullSettingsFromCloud() {
+  if (!supabaseClient) {
+    alert("Supabase not configured in the HTML yet.");
+    return;
+  }
+  if (!navigator.onLine) {
+    alert("No internet. Connect to Wi-Fi then try again.");
+    return;
+  }
+
+  const { data, error } = await supabaseClient
+    .from("app_settings")
+    .select("data, updated_at")
+    .eq("id", SETTINGS_ROW_ID)
+    .single();
+
+  if (error) {
+    alert("Cloud pull failed:\n\n" + error.message);
+    return;
+  }
+
+  applySettingsObjectToLocal(data.data);
+  alert("Synced settings from cloud.\nUpdated: " + data.updated_at);
+}
+
+// Push current settings to cloud (requires login)
+async function pushSettingsToCloud() {
+  if (!supabaseClient) {
+    alert("Supabase not configured in the HTML yet.");
+    return;
+  }
+  if (!navigator.onLine) {
+    alert("No internet. Connect to Wi-Fi then try again.");
+    return;
+  }
+
+  const { data: sessData } = await supabaseClient.auth.getSession();
+  if (!sessData.session) {
+    alert("Not signed in.\nGo to Admin and sign in to push changes.");
+    return;
+  }
+
+  const payload = getLocalSettingsObject();
+
+  const { error } = await supabaseClient
+    .from("app_settings")
+    .update({ data: payload })
+    .eq("id", SETTINGS_ROW_ID);
+
+  if (error) {
+    alert("Cloud push failed:\n\n" + error.message);
+    return;
+  }
+
+  alert("Pushed settings to cloud.");
+}
+
+// Optional: simple sign-in helpers (put buttons in Admin if you want)
+async function supabaseSignIn() {
+  if (!supabaseClient) return;
+  const email = prompt("Supabase email:");
+  if (!email) return;
+  const password = prompt("Supabase password:");
+  if (!password) return;
+
+  const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+  if (error) alert("Sign in failed:\n\n" + error.message);
+  else alert("Signed in.");
+}
+
+async function supabaseSignOut() {
+  if (!supabaseClient) return;
+  await supabaseClient.auth.signOut();
+  alert("Signed out.");
+}
+// ====================================================================
+
+  const $ = (id) => document.getElementById(id);
+
+  const pad2 = (n)=> (n<10?("0"+n):(""+n));
+  const today = new Date();
+  const todayStr = `${today.getFullYear()}-${pad2(today.getMonth()+1)}-${pad2(today.getDate())}`;
+
+  function loadJSON(k, fallback){
+    try { return JSON.parse(localStorage.getItem(k) || JSON.stringify(fallback)); }
+    catch { return fallback; }
+  }
+  function saveJSON(k, v){ localStorage.setItem(k, JSON.stringify(v)); }
+
+  function safeNum(x, fallback=0){
+    const n = Number(x);
+    return Number.isFinite(n) ? n : fallback;
+  }
+
+  function migrateIfEmpty(){
+    const existing = loadJSON(STORAGE_KEY, []);
+    if (existing.length > 0) return;
+
+    let merged = [];
+    let mergedState = null;
+
+    for (const lk of LEGACY_KEYS){
+      const r = loadJSON(lk.records, []);
+      if (Array.isArray(r) && r.length) merged = merged.concat(r);
+
+      const s = loadJSON(lk.state, null);
+      if (s && !mergedState) mergedState = s;
+    }
+
+    if (merged.length){
+      // De-dupe by a soft key
+      const seen = new Set();
+      const out = [];
+      for (const e of merged){
+        const key = `${e.tsISO||""}|${e.kind||""}|${e.date||""}|${e.pen||""}|${e.box||""}|${e.hole||""}|${e.defectType||""}|${e.sex||""}|${e.action||""}|${e.value||""}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push(e);
+      }
+      saveJSON(STORAGE_KEY, out);
+    }
+
+    if (mergedState){
+      const st = loadJSON(STATE_KEY, {});
+      if (!Object.keys(st).length) saveJSON(STATE_KEY, mergedState);
+    }
+  }
+
+  migrateIfEmpty();
+
+  let records = loadJSON(STORAGE_KEY, []);
+  let state   = loadJSON(STATE_KEY, {});
+
+  // Theme
+  let theme = state.theme || "light";
+  function applyTheme(){
+    document.documentElement.setAttribute("data-theme", theme);
+    $("toggleTheme").textContent = (theme === "dark") ? "Light Mode" : "Dark Mode";
+  }
+
+  function nowISO(){ return new Date().toISOString(); }
+  function localTS(){
+    const d = new Date();
+    return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
+  }
+
+  const dateEl = $("date");
+  const caretakerEl = $("caretaker");
+  const roundEl = $("round");
+  const activeBoxEl = $("activeBox");
+  const lastLoggedEl = $("lastLogged");
+
+  dateEl.value = state.date || todayStr;
+  caretakerEl.value = state.caretaker || "";
+
+  let activeBox = state.activeBox || "";
+  let round = Number.isFinite(state.round) ? state.round : 1;
+  let eggPen = Number.isFinite(state.eggPen) ? state.eggPen : 1;
+
+  let mortPen = Number.isFinite(state.mortPen) ? state.mortPen : 1;
+
+  let adminUnlocked = !!state.adminUnlocked;
+  let adminPin = state.adminPin || DEFAULT_PIN;
+
+  function persistState(){
+    saveJSON(STATE_KEY, {
+      date: dateEl.value,
+      caretaker: caretakerEl.value,
+      activeBox, round, eggPen, mortPen,
+      adminUnlocked, adminPin,
+      theme
+    });
+  }
+  function saveRecords(){ saveJSON(STORAGE_KEY, records); }
+
+  function baseMeta(){
+    return {
+      tsISO: nowISO(),
+      tsLocal: localTS(),
+      date: dateEl.value || todayStr,
+      caretaker: (caretakerEl.value.trim() || "Unknown")
+    };
+  }
+
+  // Tabs
+  const tabs = [
+    ["tabEggs","viewEggs"],
+    ["tabMortality","viewMortality"],
+    ["tabFeed","viewFeed"],
+    ["tabSummary","viewSummary"],
+    ["tabAdmin","viewAdmin"]
+  ];
+
+  function showTab(tabId){
+    for (const [t,v] of tabs){
+      $(v).style.display = (t===tabId) ? "block" : "none";
+      $(t).classList.toggle("selectedBlue", t===tabId);
+    }
+    // Refresh tables when you visit
+    if (tabId === "tabFeed") renderFeedTable();
+    if (tabId === "tabSummary") renderSummary();
+    if (tabId === "tabMortality") refreshMortalityPanel();
+  }
+
+  $("tabEggs").onclick = ()=>showTab("tabEggs");
+  $("tabMortality").onclick = ()=>showTab("tabMortality");
+  $("tabFeed").onclick = ()=>showTab("tabFeed");
+  $("tabSummary").onclick = ()=>showTab("tabSummary");
+  $("tabAdmin").onclick = ()=>showTab("tabAdmin");
+
+  $("toggleTheme").onclick = ()=>{
+    theme = (theme === "dark") ? "light" : "dark";
+    applyTheme();
+    persistState();
+  };
+
+  // Admin lock
+  function refreshAdmin(){
+    const st = $("adminStatus");
+    if (adminUnlocked){
+      st.textContent = "Unlocked";
+      st.classList.add("ok");
+      $("btnUnlock").style.display="none";
+      $("btnLock").style.display="inline-block";
+      $("tabAdmin").style.display="inline-block";
+    } else {
+      st.textContent = "Locked";
+      st.classList.remove("ok");
+      $("btnUnlock").style.display="inline-block";
+      $("btnLock").style.display="none";
+      $("tabAdmin").style.display="none";
+      if ($("viewAdmin").style.display==="block") showTab("tabEggs");
+    }
+  }
+  $("btnUnlock").onclick = () => {
+    const entered = prompt("Enter Admin PIN:");
+    if (entered === null) return;
+    if (String(entered) === String(adminPin)){
+      adminUnlocked = true;
+      persistState();
+      refreshAdmin();
+      showTab("tabAdmin");
+      loadAdminInputs();
+    } else {
+      alert("Incorrect PIN.\nPlease contact administrator for assistance.");
+    }
+  };
+  $("btnLock").onclick = () => {
+    adminUnlocked = false;
+    persistState();
+    refreshAdmin();
+    showTab("tabEggs");
+  };
+
+  // Helpers
+  function dateToInt(d){ return Number(String(d).replaceAll("-","")); }
+  function inRangeDate(d, start, end){
+    const x = dateToInt(d);
+    return x >= dateToInt(start) && x <= dateToInt(end);
+  }
+  function startOfWeek(dateStr){
+    // Monday as start
+    const d = new Date(dateStr+"T00:00:00");
+    const day = d.getDay(); // 0=Sun
+    const diff = (day === 0 ? -6 : 1 - day);
+    d.setDate(d.getDate() + diff);
+    return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+  }
+  function addDays(dateStr, delta){
+    const d = new Date(dateStr+"T00:00:00");
+    d.setDate(d.getDate() + delta);
+    return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+  }
+
+  // Pens and boxes mapping
+  function penFromBoxId(boxId){
+    const side = boxId.charAt(0);
+    const num = Number(boxId.slice(1));
+    if (side === "N") return (num <= 4) ? 1 : 2;
+    if (side === "S") return (num <= 4) ? 4 : 3;
+    return 0;
+  }
+
+  // Records logging wrapper
+  function logEvent(evt, label){
+    records.push(evt);
+    saveRecords();
+    lastLoggedEl.textContent = label;
+    persistState();
+
+    // refresh views
+    updateEggPenKpis();
+    refreshMortalityPanel();
+    renderFeedTable();
+    renderSummary();
+  }
+
+  function undoLast(filterFn, label){
+    for (let i=records.length-1;i>=0;i--){
+      if (filterFn(records[i])){
+        records.splice(i,1);
+        saveRecords();
+        lastLoggedEl.textContent = `Undone (${label})`;
+        updateEggPenKpis();
+        refreshMortalityPanel();
+        renderFeedTable();
+        renderSummary();
+        return;
+      }
+    }
+    lastLoggedEl.textContent = `Nothing to undo (${label})`;
+  }
+
+  // Eggs: boxes + holes rendering (the reliable fix)
+  const boxButtons = {};
+  function setActiveBox(boxId){
+    activeBox = boxId;
+    activeBoxEl.textContent = activeBox || "(none)";
+    for (const k in boxButtons) boxButtons[k].classList.remove("selectedBlue");
+    if (activeBox && boxButtons[activeBox]) boxButtons[activeBox].classList.add("selectedBlue");
+    persistState();
+  }
+  function createBoxButton(id, parent){
+    const b = document.createElement("button");
+    b.className = "btn btnSmall boxBtn";
+    b.textContent = id;
+    b.onclick = ()=> setActiveBox(id);
+    parent.appendChild(b);
+    boxButtons[id] = b;
+  }
+  function renderBoxes(){
+    const pen1 = $("pen1Boxes"), pen2 = $("pen2Boxes"), pen3 = $("pen3Boxes"), pen4 = $("pen4Boxes");
+    pen1.innerHTML = ""; pen2.innerHTML = ""; pen3.innerHTML = ""; pen4.innerHTML = "";
+    for (let i=1;i<=4;i++) createBoxButton(`N${pad2(i)}`, pen1);
+    for (let i=5;i<=14;i++) createBoxButton(`N${pad2(i)}`, pen2);
+    for (let i=1;i<=4;i++) createBoxButton(`S${pad2(i)}`, pen4);
+    for (let i=5;i<=14;i++) createBoxButton(`S${pad2(i)}`, pen3);
+  }
+
+  function logNestEgg(hole){
+    if (!activeBox){ alert("Tap a box first."); return; }
+    const pen = penFromBoxId(activeBox);
+    const nestId = `${activeBox}${hole}`;
+    const evt = { ...baseMeta(), kind:"egg_nest", round, pen, box:activeBox, hole, nestId, count:1 };
+    logEvent(evt, `Nest ${nestId} @ ${evt.tsLocal.split(" ")[1]}`);
+  }
+
+  function renderHoles(){
+    const holesDiv = $("holes");
+    holesDiv.innerHTML = "";
+    for (let i=1;i<=10;i++){
+      const b = document.createElement("button");
+      b.className = "btn";
+      b.textContent = String(i);
+      b.onclick = ()=> logNestEgg(i);
+      holesDiv.appendChild(b);
+    }
+  }
+
+  // Egg pen selector
+  const eggBtns = [ $("eggPen1"), $("eggPen2"), $("eggPen3"), $("eggPen4") ];
+  function setEggPen(p){
+    eggPen = p;
+    eggBtns.forEach((b, idx)=> b.classList.toggle("selectedBlue", idx+1===p));
+    persistState();
+    updateEggPenKpis();
+  }
+  eggBtns.forEach((b, idx)=> b.onclick = ()=> setEggPen(idx+1));
+
+  function logFloorEgg(){
+    const m = baseMeta();
+    logEvent({ ...m, kind:"egg_floor", round, pen:eggPen, count:1 }, `Floor egg Pen ${eggPen} @ ${m.tsLocal.split(" ")[1]}`);
+  }
+  function logDefect(defectType){
+    const m = baseMeta();
+    logEvent({ ...m, kind:"egg_defect", round, pen:eggPen, defectType, count:1 }, `${defectType} Pen ${eggPen} @ ${m.tsLocal.split(" ")[1]}`);
+  }
+
+  function eggTotalsForPen(dateStr, roundNum, pen){
+    let nest=0,floor=0,dirty=0,crack=0,dbl=0,cull=0;
+    for (const r of records){
+      if (r.date!==dateStr) continue;
+      if (r.round!==roundNum) continue;
+      if (r.pen!==pen) continue;
+      if (r.kind==="egg_nest") nest++;
+      if (r.kind==="egg_floor") floor++;
+      if (r.kind==="egg_defect"){
+        if (r.defectType==="Dirty") dirty++;
+        if (r.defectType==="Cracked") crack++;
+        if (r.defectType==="Double") dbl++;
+        if (r.defectType==="Cull") cull++;
+      }
+    }
+    return {nest,floor,total:nest+floor,dirty,crack,dbl,cull};
+  }
+
+  function updateEggPenKpis(){
+    const d = dateEl.value || todayStr;
+    const t = eggTotalsForPen(d, round, eggPen);
+    $("penNest").textContent = t.nest;
+    $("penFloor").textContent = t.floor;
+    $("penTotalEggs").textContent = t.total;
+    $("penDirty").textContent = t.dirty;
+    $("penCrack").textContent = t.crack;
+    $("penDouble").textContent = t.dbl;
+    $("penCull").textContent = t.cull;
+  }
+
+  $("clearBox").onclick = ()=> setActiveBox("");
+  $("nextRound").onclick = ()=> { round += 1; roundEl.textContent=String(round); persistState(); updateEggPenKpis(); };
+  $("undoNest").onclick = ()=> {
+    const d = dateEl.value || todayStr;
+    undoLast(r => r.kind==="egg_nest" && r.date===d && r.round===round, "Nest");
+  };
+
+  $("floorPlus").onclick = logFloorEgg;
+  $("undoFloor").onclick = ()=> {
+    const d = dateEl.value || todayStr;
+    undoLast(r => r.kind==="egg_floor" && r.date===d && r.round===round && r.pen===eggPen, "Floor");
+  };
+
+  $("defDirty").onclick  = ()=> logDefect("Dirty");
+  $("defCrack").onclick  = ()=> logDefect("Cracked");
+  $("defDouble").onclick = ()=> logDefect("Double");
+  $("defCull").onclick   = ()=> logDefect("Cull");
+  $("undoDefect").onclick = ()=> {
+    const d = dateEl.value || todayStr;
+    undoLast(r => r.kind==="egg_defect" && r.date===d && r.round===round && r.pen===eggPen, "Defect");
+  };
+
+  // Mortality
+  const mortBtns = [ $("mortPen1"), $("mortPen2"), $("mortPen3"), $("mortPen4"), $("mortPen5") ];
+  function setMortPen(p){
+    mortPen = p;
+    mortBtns.forEach((b, idx)=> b.classList.toggle("selectedBlue", idx+1===p));
+    persistState();
+    refreshMortalityPanel();
+  }
+  mortBtns.forEach((b, idx)=> b.onclick = ()=> setMortPen(idx+1));
+
+  function logMort(action, sex){
+    const m = baseMeta();
+    // action: "dead" | "cull"
+    const evt = { ...m, kind:"mort", pen: mortPen, action, sex, count:1 };
+    logEvent(evt, `${action.toUpperCase()} ${sex} Pen ${mortPen} @ ${m.tsLocal.split(" ")[1]}`);
+  }
+
+  $("deadM").onclick = ()=> logMort("dead","M");
+  $("deadF").onclick = ()=> logMort("dead","F");
+  $("cullM").onclick = ()=> logMort("cull","M");
+  $("cullF").onclick = ()=> logMort("cull","F");
+  $("undoMort").onclick = ()=> {
+    const d = dateEl.value || todayStr;
+    undoLast(r => r.kind==="mort" && r.date===d && r.pen===mortPen, "Mortality");
+  };
+
+  function sumMortalityFor(pen, startDate, endDate){
+    let deadM=0,deadF=0,cullM=0,cullF=0;
+    for (const r of records){
+      if (r.kind !== "mort") continue;
+      if (r.pen !== pen) continue;
+      if (!inRangeDate(r.date, startDate, endDate)) continue;
+      if (r.action==="dead" && r.sex==="M") deadM += 1;
+      if (r.action==="dead" && r.sex==="F") deadF += 1;
+      if (r.action==="cull" && r.sex==="M") cullM += 1;
+      if (r.action==="cull" && r.sex==="F") cullF += 1;
+    }
+    return {deadM,deadF,cullM,cullF};
+  }
+
+  // Admin: placed + rates stored as records for history
+  function getLatestSetting(kind, pen, sex, onOrBeforeDateStr){
+    // kind: "placed" | "rate"
+    // if onOrBeforeDateStr provided, find latest record with date <= it.
+    // else latest overall.
+    let best = null;
+    for (const r of records){
+      if (r.kind !== kind) continue;
+      if (r.pen !== pen) continue;
+      if (r.sex !== sex) continue;
+      if (onOrBeforeDateStr && dateToInt(r.date) > dateToInt(onOrBeforeDateStr)) continue;
+      if (!best) best = r;
+      else if (dateToInt(r.date) > dateToInt(best.date)) best = r;
+      else if (dateToInt(r.date) === dateToInt(best.date) && (r.tsISO||"") > (best.tsISO||"")) best = r;
+    }
+    return best ? safeNum(best.value, 0) : 0;
+  }
+
+  function getPlaced(pen, sex, onOrBeforeDateStr){
+    return getLatestSetting("placed", pen, sex, onOrBeforeDateStr);
+  }
+  function getRate(pen, sex, onOrBeforeDateStr){
+    return getLatestSetting("rate", pen, sex, onOrBeforeDateStr);
+  }
+
+  function getInventory(pen, sex, onOrBeforeDateStr){
+    const placed = getPlaced(pen, sex, onOrBeforeDateStr);
+    let losses = 0;
+    for (const r of records){
+      if (r.kind !== "mort") continue;
+      if (r.pen !== pen) continue;
+      if (r.sex !== sex) continue;
+      if (dateToInt(r.date) > dateToInt(onOrBeforeDateStr)) continue;
+      losses += 1;
+    }
+    const inv = placed - losses;
+    return (inv < 0) ? 0 : inv;
+  }
+
+  function refreshMortalityPanel(){
+    const d = dateEl.value || todayStr;
+
+    // Today's totals for selected pen
+    const day = sumMortalityFor(mortPen, d, d);
+    $("dayDeadM").textContent = day.deadM;
+    $("dayDeadF").textContent = day.deadF;
+    $("dayCullM").textContent = day.cullM;
+    $("dayCullF").textContent = day.cullF;
+
+    // Inventory
+    const invM = getInventory(mortPen, "M", d);
+    const invF = (mortPen === 5) ? 0 : getInventory(mortPen, "F", d);
+
+    $("invM").textContent = invM;
+    $("invF").textContent = invF;
+  }
+
+  // Feed table
+  function round1(x){ return Math.round(x * 10) / 10; }
+
+  function renderFeedTable(){
+    const tbody = $("feedTable");
+    if (!tbody) return;
+    const d = dateEl.value || todayStr;
+    const rows = [];
+
+    for (let pen=1; pen<=5; pen++){
+      const invM = getInventory(pen, "M", d);
+      const invF = (pen === 5) ? 0 : getInventory(pen, "F", d);
+
+      const rateM = getRate(pen, "M", d);
+      const rateF = (pen === 5) ? 0 : getRate(pen, "F", d);
+
+      const feedM = round1(invM * rateM);
+      const feedF = round1(invF * rateF);
+
+      const penLabel = (pen === 5) ? "Spares" : `Pen ${pen}`;
+
+      rows.push(`
+        <tr>
+          <td>${penLabel}</td>
+          <td>${invM}</td><td>${rateM || 0}</td><td>${feedM}</td>
+          <td>${invF}</td><td>${rateF || 0}</td><td>${feedF}</td>
+        </tr>
+      `);
+    }
+
+    tbody.innerHTML = rows.join("");
+  }
+
+  // Summary
+  let summaryMode = state.summaryMode || "daily";
+  function setSummaryMode(mode){
+    summaryMode = mode;
+    $("sumDaily").classList.toggle("selectedBlue", mode==="daily");
+    $("sumWeekly").classList.toggle("selectedBlue", mode==="weekly");
+    state.summaryMode = mode;
+    persistState();
+    renderSummary();
+  }
+  $("sumDaily").onclick = ()=> setSummaryMode("daily");
+  $("sumWeekly").onclick = ()=> setSummaryMode("weekly");
+
+  function eggTotalsRangeForPen(startDate, endDate, pen){
+    let nest=0,floor=0,dirty=0,crack=0,dbl=0,cull=0;
+    for (const r of records){
+      if (!inRangeDate(r.date, startDate, endDate)) continue;
+      if (r.pen !== pen) continue;
+
+      if (r.kind==="egg_nest") nest++;
+      if (r.kind==="egg_floor") floor++;
+      if (r.kind==="egg_defect"){
+        if (r.defectType==="Dirty") dirty++;
+        if (r.defectType==="Cracked") crack++;
+        if (r.defectType==="Double") dbl++;
+        if (r.defectType==="Cull") cull++;
+      }
+    }
+    return { nest, floor, total: nest+floor, dirty, crack, dbl, cull };
+  }
+
+  function feedComputedForDate(pen, dateStr){
+    const invM = getInventory(pen, "M", dateStr);
+    const invF = (pen===5) ? 0 : getInventory(pen, "F", dateStr);
+    const rateM = getRate(pen, "M", dateStr);
+    const rateF = (pen===5) ? 0 : getRate(pen, "F", dateStr);
+
+    return {
+      invM, invF,
+      rateM, rateF,
+      feedM: invM * rateM,
+      feedF: invF * rateF
+    };
+  }
+
+  function feedComputedForRange(pen, startDate, endDate){
+    // sum daily feed
+    let totalM = 0, totalF = 0;
+
+    // track last rate sources
+    let lastRateM = 0, lastRateF = 0;
+
+    let cur = startDate;
+    while (dateToInt(cur) <= dateToInt(endDate)){
+      const x = feedComputedForDate(pen, cur);
+      totalM += x.feedM;
+      totalF += x.feedF;
+      lastRateM = x.rateM;
+      lastRateF = x.rateF;
+      cur = addDays(cur, 1);
+    }
+
+    return {
+      totalM,
+      totalF,
+      rateM: lastRateM,
+      rateF: lastRateF
+    };
+  }
+
+  function renderSummary(){
+    const d = dateEl.value || todayStr;
+
+    const start = (summaryMode === "weekly") ? startOfWeek(d) : d;
+    const end   = (summaryMode === "weekly") ? addDays(start, 5) : d;
+
+    if (summaryMode === "weekly") {
+      $("sumEggTitle").textContent = `Egg Summary (Week Ending ${end})`;
+      $("sumMortTitle").textContent = `Mortality Summary (Week Ending ${end})`;
+      $("sumFeedTitle").textContent = `Feed Summary (Week Ending ${end})`;
+    } else {
+      $("sumEggTitle").textContent = `Egg Summary (${d})`;
+      $("sumMortTitle").textContent = `Mortality Summary (${d})`;
+      $("sumFeedTitle").textContent = `Feed Summary (${d})`;
+    }
+
+    // Eggs summary table
+    const eggBody = [];
+    for (let pen=1; pen<=4; pen++){
+      const t = eggTotalsRangeForPen(start, end, pen);
+      eggBody.push(`
+        <tr>
+          <td>Pen ${pen}</td>
+          <td>${t.nest}</td><td>${t.floor}</td><td>${t.total}</td>
+          <td>${t.dirty}</td><td>${t.crack}</td><td>${t.dbl}</td><td>${t.cull}</td>
+        </tr>
+      `);
+    }
+    $("eggSummaryTable").innerHTML = eggBody.join("");
+
+    // Mortality summary table
+    const mortBody = [];
+    for (let pen=1; pen<=5; pen++){
+      const t = sumMortalityFor(pen, start, end);
+      mortBody.push(`
+        <tr>
+          <td>${pen===5 ? "Spares" : "Pen " + pen}</td>
+          <td>${t.deadM}</td><td>${t.deadF}</td><td>${t.cullM}</td><td>${t.cullF}</td>
+        </tr>
+      `);
+    }
+    $("mortSummaryTable").innerHTML = mortBody.join("");
+
+    // Feed summary table
+    const feedBody = [];
+    for (let pen=1; pen<=5; pen++){
+      const f = (summaryMode === "weekly")
+        ? feedComputedForRange(pen, start, end)
+        : feedComputedForRange(pen, d, d);
+
+      const mLb = round1(f.totalM);
+      const fLb = round1(f.totalF);
+      const total = round1(f.totalM + f.totalF);
+
+      feedBody.push(`
+        <tr>
+          <td>${pen===5 ? "Spares" : "Pen " + pen}</td>
+          <td>${mLb}</td><td>${f.rateM || 0}</td>
+          <td>${fLb}</td><td>${(pen===5 ? 0 : (f.rateF || 0))}</td>
+          <td>${total}</td>
+        </tr>
+      `);
+    }
+    $("feedSummaryTable").innerHTML = feedBody.join("");
+  }
+
+  // Admin UI load/save
+  function loadAdminInputs(){
+    const d = dateEl.value || todayStr;
+    for (let pen=1; pen<=5; pen++){
+      const pm = getPlaced(pen, "M", d);
+      const pf = (pen===5) ? 0 : getPlaced(pen, "F", d);
+      $("placed"+pen+"M").value = pm || 0;
+      if (pen !== 5) $("placed"+pen+"F").value = pf || 0;
+
+      const rm = getRate(pen, "M", d);
+      const rf = (pen===5) ? 0 : getRate(pen, "F", d);
+      $("rate"+pen+"M").value = rm || 0;
+      if (pen !== 5) $("rate"+pen+"F").value = rf || 0;
+    }
+  }
+
+  function logSetting(kind, pen, sex, value){
+    const m = baseMeta();
+    const evt = { ...m, kind, pen, sex, value: safeNum(value, 0) };
+    logEvent(evt, `${kind.toUpperCase()} ${pen} ${sex} = ${evt.value}`);
+  }
+
+  $("savePlaced").onclick = ()=>{
+    if (!adminUnlocked) { alert("Unlock Admin first."); return; }
+    for (let pen=1; pen<=5; pen++){
+      logSetting("placed", pen, "M", $("placed"+pen+"M").value);
+      if (pen !== 5) logSetting("placed", pen, "F", $("placed"+pen+"F").value);
+    }
+    alert("Birds placed saved.");
+    loadAdminInputs();
+    pushSettingsToCloud();
+  };
+
+  $("saveRates").onclick = ()=>{
+    if (!adminUnlocked) { alert("Unlock Admin first."); return; }
+    for (let pen=1; pen<=5; pen++){
+      logSetting("rate", pen, "M", $("rate"+pen+"M").value);
+      if (pen !== 5) logSetting("rate", pen, "F", $("rate"+pen+"F").value);
+    }
+    alert("Feed rates saved.");
+    loadAdminInputs();
+    pushSettingsToCloud();
+  };
+
+  $("clearAll").onclick = ()=>{
+    if (!adminUnlocked) { alert("Unlock Admin first."); return; }
+    const ok = confirm("This will permanently delete ALL data in this browser for House Logger v8. Continue?");
+    if (!ok) return;
+    records = [];
+    saveRecords();
+    lastLoggedEl.textContent = "Cleared all data";
+    alert("Data cleared.");
+    updateEggPenKpis();
+    refreshMortalityPanel();
+    renderFeedTable();
+    renderSummary();
+  };
+
+  $("savePin").onclick = ()=>{
+    if (!adminUnlocked) { alert("Unlock Admin first."); return; }
+    const np = $("newPin").value.trim();
+    if (!np) { alert("Enter a new PIN."); return; }
+    adminPin = np;
+    $("newPin").value = "";
+    persistState();
+    alert("PIN updated.");
+  };
+
+document.getElementById("btnCloudPull").onclick = pullSettingsFromCloud;
+document.getElementById("btnCloudSignIn").onclick = supabaseSignIn;
+document.getElementById("btnCloudSignOut").onclick = supabaseSignOut;
+
+  // Exports
+  function downloadText(filename, content){
+    const blob = new Blob([content], {type: "text/csv;charset=utf-8;"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  function csvEscape(x){
+    const s = (x === null || x === undefined) ? "" : String(x);
+    if (s.includes(",") || s.includes('"') || s.includes("\n")) return `"${s.replaceAll('"','""')}"`;
+    return s;
+  }
+
+  $("exportDetail").onclick = ()=>{
+    const cols = [
+      "tsISO","tsLocal","date","caretaker","kind",
+      "round","pen","box","hole","nestId",
+      "defectType",
+      "action","sex",
+      "value","count"
+    ];
+    const lines = [cols.join(",")];
+    for (const r of records){
+      lines.push(cols.map(c => csvEscape(r[c])).join(","));
+    }
+    downloadText(`house_logger_detail_${dateEl.value||todayStr}.csv`, lines.join("\n"));
+  };
+
+  $("exportSummary").onclick = ()=>{
+    const d = dateEl.value || todayStr;
+    const start = (summaryMode === "weekly") ? startOfWeek(d) : d;
+    const end   = (summaryMode === "weekly") ? addDays(start, 6) : d;
+
+    const lines = [];
+    lines.push(`Summary Mode,${summaryMode}`);
+    lines.push(`Start Date,${start}`);
+    lines.push(`End Date,${end}`);
+    lines.push("");
+
+    lines.push("Egg Summary");
+    lines.push("Pen,Nest,Floor,Total,Dirty,Cracked,Double,Cull");
+    for (let pen=1; pen<=4; pen++){
+      const t = eggTotalsRangeForPen(start, end, pen);
+      lines.push([`Pen ${pen}`,t.nest,t.floor,t.total,t.dirty,t.crack,t.dbl,t.cull].join(","));
+    }
+    lines.push("");
+
+    lines.push("Mortality Summary");
+    lines.push("Pen,Dead Male,Dead Female,Culled Male,Culled Female");
+    for (let pen=1; pen<=5; pen++){
+      const t = sumMortalityFor(pen, start, end);
+      lines.push([pen===5?"Spares":`Pen ${pen}`, t.deadM, t.deadF, t.cullM, t.cullF].join(","));
+    }
+    lines.push("");
+
+    lines.push("Feed Summary (computed)");
+    lines.push("Pen,Male Feed (lb),Male Rate,Female Feed (lb),Female Rate,Total Feed (lb)");
+    for (let pen=1; pen<=5; pen++){
+      const f = (summaryMode === "weekly")
+        ? feedComputedForRange(pen, start, end)
+        : feedComputedForRange(pen, d, d);
+
+      const mLb = round1(f.totalM);
+      const fLb = round1(f.totalF);
+      const total = round1(f.totalM + f.totalF);
+      lines.push([
+        pen===5?"Spares":`Pen ${pen}`,
+        mLb, f.rateM || 0,
+        fLb, (pen===5 ? 0 : (f.rateF || 0)),
+        total
+      ].join(","));
+    }
+
+    downloadText(`house_logger_summary_${dateEl.value||todayStr}.csv`, lines.join("\n"));
+  };
+
+  // Date and caretaker interactions
+  dateEl.onchange = ()=>{
+    round = 1;
+    roundEl.textContent = "1";
+    persistState();
+
+    updateEggPenKpis();
+    refreshMortalityPanel();
+    renderFeedTable();
+    renderSummary();
+    if (adminUnlocked) loadAdminInputs();
+  };
+  caretakerEl.oninput = ()=> persistState();
+
+  // INIT (order matters)
+  applyTheme();
+
+  roundEl.textContent = String(round);
+  activeBoxEl.textContent = activeBox || "(none)";
+
+  renderBoxes();
+  renderHoles(); // guarantees holes show
+  setActiveBox(activeBox);
+  setEggPen(eggPen);
+  setMortPen(mortPen);
+
+  refreshAdmin();
+  updateEggPenKpis();
+  refreshMortalityPanel();
+  renderFeedTable();
+
+  setSummaryMode(summaryMode);
+  renderSummary();
+
+  if (adminUnlocked) loadAdminInputs();
+
+  showTab("tabEggs");
+  if (supabaseEnabled && navigator.onLine) {
+    pullSettingsFromCloud();
+}
+})();
+</script>
+</body>
+</html>
