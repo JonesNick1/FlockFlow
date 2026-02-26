@@ -667,28 +667,28 @@ async function pushSettingsToCloud() {
   }
 
   alert("Pushed settings to cloud.");
-}
-$("sbTestUpdate").onclick = async () => {
-  const { data: sess } = await supabaseClient.auth.getSession();
-  alert(sess.session ? "SIGNED IN ✅" : "NOT SIGNED IN ❌");
+  }
+  $("sbTestUpdate").onclick = async () => {
+    const { data: sess } = await supabaseClient.auth.getSession();
+    alert(sess.session ? "SIGNED IN ✅" : "NOT SIGNED IN ❌");
 
-  const payload = { test: Date.now() };
+    const payload = { test: Date.now() };
 
-  const { data, error } = await supabaseClient
-    .from("app_settings")
-    .update({ data: payload })
-    .eq("id", "main")
-    .select();
+    const { data, error } = await supabaseClient
+      .from("app_settings")
+      .update({ data: payload })
+      .eq("id", "main")
+      .select();
 
-  if (error) {
-    alert("UPDATE FAILED:\n" + error.message);
-    console.log(error);
-    return;
+    if (error) {
+      alert("UPDATE FAILED:\n" + error.message);
+      console.log(error);
+      return;
   }
 
-  alert("UPDATE OK. Rows updated: " + (data ? data.length : 0));
-  console.log("updated rows:", data);
-};
+    alert("UPDATE OK. Rows updated: " + (data ? data.length : 0));
+    console.log("updated rows:", data);
+  };
 
 // Optional: simple sign-in helpers (put buttons in Admin if you want)
 async function supabaseSignIn() {
