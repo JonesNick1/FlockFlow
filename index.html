@@ -668,6 +668,7 @@ async function pushSettingsToCloud() {
 
   alert("Pushed settings to cloud.");
   }
+
   $("sbTestUpdate").onclick = async () => {
     const { data: sess } = await supabaseClient.auth.getSession();
     alert(sess.session ? "SIGNED IN ✅" : "NOT SIGNED IN ❌");
