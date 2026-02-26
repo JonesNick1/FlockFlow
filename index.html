@@ -574,12 +574,11 @@ const SUPABASE_URL = "https://wdsdfsnozzfljjqydcgs.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indkc2Rmc25venpmbGpqcXlkY2dzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIxMzUxNDcsImV4cCI6MjA4NzcxMTE0N30.1wVMaytWX-vU3BmfYqZU-GlRICW9rntfDnJcWKP9q_w";
 const SETTINGS_ROW_ID = "main";
 
-const supabaseEnabled =
-  SUPABASE_URL.startsWith("http") && SUPABASE_ANON_KEY.length > 20;
-
-const supabaseClient = supabaseEnabled
-  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-  : null;
+// create ONE client and expose it globally
+window.supabaseClient = window.supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_ANON_KEY
+);
 
 // Make this return EXACTLY your local settings shape.
 // You will edit this to match your current variables/objects.
@@ -669,35 +668,47 @@ async function pullSettingsFromCloud() {
 }
 
 // Push current settings to cloud (requires login)
-async function pushSettingsToCloud() {
-  if (!supabaseClient) {
-    alert("Supabase not configured in the HTML yet.");
-    return;
-  }
-  if (!navigator.onLine) {
-    alert("No internet. Connect to Wi-Fi then try again.");
+async function pushSettingsToCloud(){
+  alert("pushSettingsToCloud() CALLED");
+
+  if (!supabaseClient) { alert("Supabase client is null"); return; }
+  if (!navigator.onLine) { alert("No internet"); return; }
+
+  const { data: sessData, error: sessErr } = await supabaseClient.auth.getSession();
+  if (sessErr) { alert("getSession error: " + sessErr.message); return; }
+
+  const isSignedIn = !!sessData.session;
+  alert("Signed in? " + isSignedIn);
+
+  if (!isSignedIn) {
+    alert("Not signed in inside the APP. Dashboard login doesn't count.");
     return;
   }
 
-  const { data: sessData } = await supabaseClient.auth.getSession();
-  if (!sessData.session) {
-    alert("Not signed in.\nGo to Admin and sign in to push changes.");
+  let payload;
+  try {
+    payload = getLocalSettingsObject();
+  } catch (e) {
+    alert("getLocalSettingsObject() crashed:\n" + e.message);
     return;
   }
 
-  const payload = getLocalSettingsObject();
+  console.log("payload being pushed:", payload);
 
-  const { error } = await supabaseClient
+  const { data, error } = await supabaseClient
     .from("app_settings")
     .update({ data: payload })
-    .eq("id", SETTINGS_ROW_ID);
+    .eq("id", "main")
+    .select("id, updated_at");
 
   if (error) {
-    alert("Cloud push failed:\n\n" + error.message);
+    alert("UPDATE FAILED:\n" + error.message);
+    console.log("update error:", error);
     return;
   }
 
-  alert("Pushed settings to cloud.");
+  alert("UPDATE OK. Rows updated: " + (data ? data.length : 0));
+  console.log("update result:", data);
 }
 
 async function sbSignIn() {
