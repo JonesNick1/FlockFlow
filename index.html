@@ -669,48 +669,30 @@ async function pullSettingsFromCloud() {
 
 // Push current settings to cloud (requires login)
 async function pushSettingsToCloud(){
-  alert("pushSettingsToCloud() CALLED");
-
-  if (!supabaseClient) { alert("Supabase client is null"); return; }
-  if (!navigator.onLine) { alert("No internet"); return; }
-
-  const { data: sessData, error: sessErr } = await supabaseClient.auth.getSession();
-  if (sessErr) { alert("getSession error: " + sessErr.message); return; }
-
-  const isSignedIn = !!sessData.session;
-  alert("Signed in? " + isSignedIn);
-
-  if (!isSignedIn) {
-    alert("Not signed in inside the APP. Dashboard login doesn't count.");
-    return;
-  }
-
-  let payload;
   try {
-    payload = getLocalSettingsObject();
+    if (!window.supabaseClient) return;
+    if (!navigator.onLine) return;
+
+    const { data: sess } = await window.supabaseClient.auth.getSession();
+    if (!sess.session) { alert("Not signed in to Supabase."); return; }
+
+    const payload = getLocalSettingsObject();
+
+    const { data, error } = await window.supabaseClient
+      .from("app_settings")
+      .update({ data: payload })
+      .eq("id", "main")
+      .select("id, updated_at");
+
+    if (error) { alert("Cloud push failed:\n" + error.message); return; }
+    if (!data || data.length !== 1) { alert("Cloud push: updated 0 rows."); return; }
+
+    // optional: nice confirmation
+    // alert("Cloud push OK ✅");
   } catch (e) {
-    alert("getLocalSettingsObject() crashed:\n" + e.message);
-    return;
+    alert("Cloud push crashed:\n" + e.message);
   }
-
-  console.log("payload being pushed:", payload);
-
-  const { data, error } = await supabaseClient
-    .from("app_settings")
-    .update({ data: payload })
-    .eq("id", "main")
-    .select("id, updated_at");
-
-  if (error) {
-    alert("UPDATE FAILED:\n" + error.message);
-    console.log("update error:", error);
-    return;
-  }
-
-  alert("UPDATE OK. Rows updated: " + (data ? data.length : 0));
-  console.log("update result:", data);
 }
-
 async function sbSignIn() {
   const email = prompt("Supabase email:");
   const password = prompt("Supabase password:");
@@ -1581,8 +1563,7 @@ $("sbTestUpdate").onclick = async () => {
   if (adminUnlocked) loadAdminInputs();
 
   showTab("tabEggs");
-  if (supabaseEnabled && navigator.onLine) {
-    pullSettingsFromCloud();
+  if (!window.supabaseClient) return;
 }
 })();
 </script>
