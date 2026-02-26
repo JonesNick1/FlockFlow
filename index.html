@@ -635,17 +635,19 @@ function applySettingsObjectToLocal(obj) {
 // Pull latest settings from cloud (no login required)
 async function pullSettingsFromCloud(){
   try {
-    if (!window.supabaseClient) return;
-    if (!navigator.onLine) return;
-    alert("Pulled cloud updated_at: " + data.updated_at);
-    const { data, error } = await window.supabaseClient
+    const { data: row, error } = await window.supabaseClient
       .from("app_settings")
       .select("data, updated_at")
       .eq("id", "main")
       .maybeSingle();
+    if (error) { alert("Cloud pull failed:\n\n" + error.message); return; }
+if (!row)  { alert('Cloud pull failed:\n\nNo row found for id="main".'); return; }
 
-    if (error) { alert("Cloud pull failed:\n" + error.message); return; }
-    if (!data) { alert('Cloud pull failed:\nNo row found for id="main".'); return; }
+// if you want the timestamp popup:
+alert("Pulled cloud updated_at: " + row.updated_at);
+
+// apply settings:
+applyCloudSettingsToLocal(row.data);
 
     applySettingsObjectToLocal(data.data);
     // optional: alert("Cloud pull OK ✅");
