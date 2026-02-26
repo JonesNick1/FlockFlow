@@ -583,29 +583,56 @@ const supabaseClient = supabaseEnabled
 
 // Make this return EXACTLY your local settings shape.
 // You will edit this to match your current variables/objects.
-function getLocalSettingsObject() {
-  return {
-    placed: placed, // <-- change this line if your variable name differs
-    rates: rates    // <-- change this line if your variable name differs
-  };
+function numVal(id) {
+  const el = document.getElementById(id);
+  if (!el) return 0;
+  const n = parseFloat(el.value);
+  return Number.isFinite(n) ? n : 0;
 }
 
+function getLocalSettingsObject() {
+  const placed = {};
+  const rates = {};
+
+  for (let pen = 1; pen <= 5; pen++) {
+    placed[String(pen)] = {
+      m: numVal(`placed${pen}M`),
+      f: (pen === 5) ? 0 : numVal(`placed${pen}F`)
+    };
+
+    rates[String(pen)] = {
+      m: numVal(`rate${pen}M`),
+      f: (pen === 5) ? 0 : numVal(`rate${pen}F`)
+    };
+  }
+
+  return { placed, rates };
+}
 // Apply cloud settings into your local variables/objects.
 // You will edit this to match your current variables/objects, then call your normal re-render functions.
+function setVal(id, v) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.value = (v ?? 0);
+}
+
 function applySettingsObjectToLocal(obj) {
   if (!obj) return;
 
-  if (obj.placed) placed = obj.placed; // <-- adjust variable names if needed
-  if (obj.rates)  rates  = obj.rates;
+  for (let pen = 1; pen <= 5; pen++) {
+    const p = obj.placed?.[String(pen)] || {};
+    const r = obj.rates?.[String(pen)] || {};
 
-  // After applying, call whatever your file already uses to refresh UI:
-  // e.g. updateFeedTable(); updateInventory(); renderSummary(); saveState(); etc.
-  if (typeof saveState === "function") saveState();
-  if (typeof refreshAll === "function") refreshAll();
-  if (typeof renderFeed === "function") renderFeed();
-  if (typeof renderSummary === "function") renderSummary();
+    setVal(`placed${pen}M`, p.m ?? 0);
+    if (pen !== 5) setVal(`placed${pen}F`, p.f ?? 0);
+
+    setVal(`rate${pen}M`, r.m ?? 0);
+    if (pen !== 5) setVal(`rate${pen}F`, r.f ?? 0);
+  }
+
+  // Then run your existing refresh function(s) if they exist
+  if (typeof loadAdminInputs === "function") loadAdminInputs();
 }
-
 // Pull latest settings from cloud (no login required)
 async function pullSettingsFromCloud() {
   if (!supabaseClient) {
