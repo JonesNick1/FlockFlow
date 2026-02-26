@@ -632,6 +632,28 @@ function applySettingsObjectToLocal(obj) {
   // Then run your existing refresh function(s) if they exist
   if (typeof loadAdminInputs === "function") loadAdminInputs();
 }
+function applyCloudSettingsToLocal(settings) {
+  // settings = { placed: { "1":{m,f}... }, rates: { "1":{m,f}... } }
+  // Write to your event log so it becomes the local truth on this device.
+
+  for (let pen = 1; pen <= 5; pen++) {
+    const p = (settings.placed && settings.placed[String(pen)]) ? settings.placed[String(pen)] : { m: 0, f: 0 };
+    const r = (settings.rates  && settings.rates[String(pen)])  ? settings.rates[String(pen)]  : { m: 0, f: 0 };
+
+    // Birds placed
+    logSetting("placed", pen, "M", p.m ?? 0);
+    if (pen !== 5) logSetting("placed", pen, "F", p.f ?? 0);
+
+    // Feed rates
+    logSetting("rate", pen, "M", r.m ?? 0);
+    if (pen !== 5) logSetting("rate", pen, "F", r.f ?? 0);
+  }
+
+  // Refresh admin UI + any computed tables
+  if (typeof loadAdminInputs === "function") loadAdminInputs();
+  if (typeof rebuildFeedTable === "function") rebuildFeedTable();
+  if (typeof refreshAll === "function") refreshAll();
+}
 // Pull latest settings from cloud (no login required)
 async function pullSettingsFromCloud(){
   try {
@@ -640,17 +662,15 @@ async function pullSettingsFromCloud(){
       .select("data, updated_at")
       .eq("id", "main")
       .maybeSingle();
+
     if (error) { alert("Cloud pull failed:\n\n" + error.message); return; }
-if (!row)  { alert('Cloud pull failed:\n\nNo row found for id="main".'); return; }
+    if (!row)  { alert('Cloud pull failed:\n\nNo row found for id="main".'); return; }
 
-// if you want the timestamp popup:
-alert("Pulled cloud updated_at: " + row.updated_at);
+    alert("Pulled cloud updated_at: " + row.updated_at);
 
-// apply settings:
-applyCloudSettingsToLocal(row.data);
+    // Apply cloud settings to this device
+    applyCloudSettingsToLocal(row.data);
 
-    applySettingsObjectToLocal(data.data);
-    // optional: alert("Cloud pull OK ✅");
   } catch (e) {
     alert("Cloud pull crashed:\n" + e.message);
   }
