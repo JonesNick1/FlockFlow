@@ -615,8 +615,17 @@ async function pullSettingsFromCloud() {
   const { data, error } = await supabaseClient
     .from("app_settings")
     .select("data, updated_at")
-    .eq("id", SETTINGS_ROW_ID)
-    .single();
+    .eq("id", "main")
+    .maybeSingle();
+
+  if (error) {
+    alert("Cloud pull failed:\n\n" + error.message);
+    return;
+  }
+  if (!data) {
+    alert('Cloud pull failed:\n\nNo row found in app_settings for id="main".');
+    return;
+  }
 
   if (error) {
     alert("Cloud pull failed:\n\n" + error.message);
