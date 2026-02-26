@@ -181,7 +181,7 @@
 
 <body>
 <div class="wrap">
-  <h2>House Logger (Offline)</h2>
+  <h2>FlockFlow</h2>
   <div class="muted">Offline logging for eggs, floor eggs, egg defects, mortality, and feed. Export CSV anytime.</div>
 
   <div class="nav">
@@ -479,10 +479,6 @@
 
   <!-- ADMIN VIEW -->
   <div id="viewAdmin" style="display:none;">
-   <button class="btn btnSmall" id="sbSignIn">Supabase Sign In</button>
-   <button class="btn btnSmall" id="sbSignOut">Supabase Sign Out</button>
-   <button class="btn btnSmall" id="sbPull">Sync From Cloud</button> 
-
    <div class="card">
       <h3 class="sectionTitle">Admin</h3>
       <div class="muted">Edit birds placed, feed rates, and clear data.</div>
@@ -671,21 +667,27 @@ async function pushSettingsToCloud() {
 
   alert("Pushed settings to cloud.");
 }
+$("sbTestUpdate").onclick = async () => {
+  const { data: sess } = await supabaseClient.auth.getSession();
+  alert(sess.session ? "SIGNED IN ✅" : "NOT SIGNED IN ❌");
 
-async function sbSignIn() {
-  const email = prompt("Supabase email:");
-  const password = prompt("Supabase password:");
-  if (!email || !password) return;
+  const payload = { test: Date.now() };
 
-  const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
-  if (error) alert("Sign in failed:\n" + error.message);
-  else alert("Signed in ✅");
-}
+  const { data, error } = await supabaseClient
+    .from("app_settings")
+    .update({ data: payload })
+    .eq("id", "main")
+    .select();
 
-async function sbSignOut() {
-  await supabaseClient.auth.signOut();
-  alert("Signed out.");
-}
+  if (error) {
+    alert("UPDATE FAILED:\n" + error.message);
+    console.log(error);
+    return;
+  }
+
+  alert("UPDATE OK. Rows updated: " + (data ? data.length : 0));
+  console.log("updated rows:", data);
+};
 
 // Optional: simple sign-in helpers (put buttons in Admin if you want)
 async function supabaseSignIn() {
