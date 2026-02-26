@@ -637,7 +637,7 @@ async function pullSettingsFromCloud(){
   try {
     if (!window.supabaseClient) return;
     if (!navigator.onLine) return;
-
+    alert("Pulled cloud updated_at: " + data.updated_at);
     const { data, error } = await window.supabaseClient
       .from("app_settings")
       .select("data, updated_at")
