@@ -482,6 +482,7 @@
    <button class="btn btnSmall" id="sbSignIn">Supabase Sign In</button>
    <button class="btn btnSmall" id="sbSignOut">Supabase Sign Out</button>
    <button class="btn btnSmall" id="sbPull">Sync From Cloud</button> 
+   <button class="btn btnSmall" id="sbTestUpdate">Test Cloud Update</button>
 
    <div class="card">
       <h3 class="sectionTitle">Admin</h3>
@@ -1400,6 +1401,28 @@ async function supabaseSignOut() {
 document.getElementById("btnCloudPull").onclick = pullSettingsFromCloud;
 document.getElementById("btnCloudSignIn").onclick = supabaseSignIn;
 document.getElementById("btnCloudSignOut").onclick = supabaseSignOut;
+
+$("sbTestUpdate").onclick = async () => {
+  const { data: sess } = await supabaseClient.auth.getSession();
+  alert(sess.session ? "SIGNED IN ✅" : "NOT SIGNED IN ❌");
+
+  const payload = { test: Date.now() };
+
+  const { data, error } = await supabaseClient
+    .from("app_settings")
+    .update({ data: payload })
+    .eq("id", "main")
+    .select();
+
+  if (error) {
+    alert("UPDATE FAILED:\n" + error.message);
+    console.log(error);
+    return;
+  }
+
+  alert("UPDATE OK. Rows updated: " + (data ? data.length : 0));
+  console.log("updated rows:", data);
+};
 
   // Exports
   function downloadText(filename, content){
