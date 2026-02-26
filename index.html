@@ -633,40 +633,26 @@ function applySettingsObjectToLocal(obj) {
   if (typeof loadAdminInputs === "function") loadAdminInputs();
 }
 // Pull latest settings from cloud (no login required)
-async function pullSettingsFromCloud() {
-  if (!supabaseClient) {
-    alert("Supabase not configured in the HTML yet.");
-    return;
-  }
-  if (!navigator.onLine) {
-    alert("No internet. Connect to Wi-Fi then try again.");
-    return;
-  }
+async function pullSettingsFromCloud(){
+  try {
+    if (!window.supabaseClient) return;
+    if (!navigator.onLine) return;
 
-  const { data, error } = await supabaseClient
-    .from("app_settings")
-    .select("data, updated_at")
-    .eq("id", "main")
-    .maybeSingle();
+    const { data, error } = await window.supabaseClient
+      .from("app_settings")
+      .select("data, updated_at")
+      .eq("id", "main")
+      .maybeSingle();
 
-  if (error) {
-    alert("Cloud pull failed:\n\n" + error.message);
-    return;
-  }
-  if (!data) {
-    alert('Cloud pull failed:\n\nNo row found in app_settings for id="main".');
-    return;
-  }
+    if (error) { alert("Cloud pull failed:\n" + error.message); return; }
+    if (!data) { alert('Cloud pull failed:\nNo row found for id="main".'); return; }
 
-  if (error) {
-    alert("Cloud pull failed:\n\n" + error.message);
-    return;
+    applySettingsObjectToLocal(data.data);
+    // optional: alert("Cloud pull OK ✅");
+  } catch (e) {
+    alert("Cloud pull crashed:\n" + e.message);
   }
-
-  applySettingsObjectToLocal(data.data);
-  alert("Synced settings from cloud.\nUpdated: " + data.updated_at);
 }
-
 // Push current settings to cloud (requires login)
 async function pushSettingsToCloud(){
   try {
@@ -1563,7 +1549,9 @@ $("sbTestUpdate").onclick = async () => {
   if (adminUnlocked) loadAdminInputs();
 
   showTab("tabEggs");
-  if (!window.supabaseClient) return;
+  if (supabaseEnabled && navigator.onLine) {
+    pullSettingsFromCloud();
+    const supabaseEnabled = true;
 }
 })();
 </script>
