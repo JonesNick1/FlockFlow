@@ -180,7 +180,14 @@
 </head>
 
 <body>
-<div class="wrap">
+<div id="loginGate" class="card" style="max-width:520px; margin:40px auto; display:none;">
+  <h3 style="margin-top:0;">Sign in required</h3>
+  <div class="muted" style="margin-bottom:10px;">
+    Please sign in to use House Logger.
+  </div>
+  <button class="btn btnWide" id="btnGateSignIn">Sign In</button>
+</div>
+<div class="wrap" id="appWrap">
   <h2>House Logger (Offline)</h2>
   <div class="muted">Offline logging for eggs, floor eggs, egg defects, mortality, and feed. Export CSV anytime.</div>
 
@@ -421,6 +428,13 @@
         <div class="row">
           <button class="btn btnSmall" id="sumDaily">Daily</button>
           <button class="btn btnSmall" id="sumWeekly">Weekly</button>
+         <div id="userInfo" style="
+           font-size:13px;
+           color:#666;
+           text-align:right;
+           min-width:200px;">
+           Not signed in
+         </div>
         </div>
       </div>
 
@@ -479,10 +493,6 @@
 
   <!-- ADMIN VIEW -->
   <div id="viewAdmin" style="display:none;">
-   <button class="btn btnSmall" id="sbSignIn">Supabase Sign In</button>
-   <button class="btn btnSmall" id="sbSignOut">Supabase Sign Out</button>
-   <button class="btn btnSmall" id="sbPull">Sync From Cloud</button> 
-   <button class="btn btnSmall" id="sbTestUpdate">Test Cloud Update</button>
 
    <div class="card">
       <h3 class="sectionTitle">Admin</h3>
@@ -558,6 +568,15 @@
 
 </div>
 
+<div id="syncFooter" style="
+  position:fixed; left:0; right:0; bottom:0;
+  padding:8px 12px;
+  background:rgba(0,0,0,0.06);
+  font-size:12px;
+  z-index:9999;">
+  <span id="syncStatus">Last sync: never</span>
+</div>
+
 <script>
 (() => {
   const STORAGE_KEY = "house_logger_v8_records";
@@ -579,7 +598,98 @@ window.supabaseClient = window.supabase.createClient(
   SUPABASE_URL,
   SUPABASE_ANON_KEY
 );
+function setUserDisplay(session){
+  const el = document.getElementById("userInfo");
+  if (!el) return;
 
+  if (!session) {
+    el.textContent = "Not signed in";
+    return;
+  }
+
+  const email = session.user?.email || "Unknown user";
+  el.textContent = `Signed in as: ${email}`;
+}
+let lastSyncTimer = null;
+
+function setSyncStatus(text){
+  const el = document.getElementById("syncStatus");
+  if (el) el.textContent = text;
+}
+
+function fmtTime(d = new Date()){
+  const pad = (n)=> (n < 10 ? "0"+n : ""+n);
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+// =================== AUTH GATE (HIDE APP UNLESS SIGNED IN) ===================
+function setUiSignedIn(isSignedIn){
+  const app = document.getElementById("appWrap");
+  const gate = document.getElementById("loginGate");
+
+  if (isSignedIn) {
+    if (gate) gate.style.display = "none";
+    if (app) app.style.display = "block";
+  } else {
+    if (app) app.style.display = "none";
+    if (gate) gate.style.display = "block";
+  }
+}
+
+// Runs on every page load
+async function bootAuthAndAutoSync(){
+  const { data } = await window.supabaseClient.auth.getSession();
+  const signedIn = !!data.session;
+  
+  setUserDisplay(data.session);
+  setUiSignedIn(signedIn);
+
+  // If signed in, auto-pull so refresh updates without needing the button
+  if (signedIn) {
+    await pullSettingsFromCloud(); // pulls latest settings
+  }
+}
+
+// React to sign-in / sign-out events
+window.supabaseClient.auth.onAuthStateChange(async (_event, session) => {
+  const signedIn = !!session;
+  
+  setUiSignedIn(signedIn);
+  setUserDisplay(session);
+  
+  if (signedIn) {
+    await pullSettingsFromCloud();
+  }
+});
+async function pushEventToCloud(evt){
+  try {
+    if (!navigator.onLine) return;
+
+    const payload = {
+      date: evt.date,
+      caretaker: evt.caretaker,
+      kind: evt.kind,
+      pen: evt.pen ?? null,
+      round: evt.round ?? null,
+      box: evt.box ?? null,
+      hole: evt.hole ?? null,
+      defect_type: evt.defectType ?? null,
+      action: evt.action ?? null,
+      sex: evt.sex ?? null,
+      value: evt.value ?? null,
+      count: evt.count ?? 1,
+      tsISO: evt.tsISO ?? null,
+      tsLocal: evt.tsLocal ?? null
+    };
+
+    const { error } = await window.supabaseClient
+      .from("house_events")
+      .insert([payload]);
+
+    if (error) console.log("Cloud insert failed:", error.message);
+  } catch (e) {
+    console.log("Cloud insert crashed:", e.message);
+  }
+}
 // Make this return EXACTLY your local settings shape.
 // You will edit this to match your current variables/objects.
 function numVal(id) {
@@ -657,23 +767,40 @@ function applyCloudSettingsToLocal(settings) {
 // Pull latest settings from cloud (no login required)
 async function pullSettingsFromCloud(){
   try {
+    const { data: sess } = await window.supabaseClient.auth.getSession();
+    if (!sess.session) { throw new Error("Not signed in."); }
     const { data: row, error } = await window.supabaseClient
       .from("app_settings")
       .select("data, updated_at")
       .eq("id", "main")
       .maybeSingle();
 
-    if (error) { alert("Cloud pull failed:\n\n" + error.message); return; }
-    if (!row)  { alert('Cloud pull failed:\n\nNo row found for id="main".'); return; }
+    if (error) { setSyncStatus(`Last sync: FAILED ${fmtTime()} (settings pull)`); return; }
+    if (!row)  { setSyncStatus(`Last sync: FAILED ${fmtTime()} (no settings row)`); return; }
 
-    alert("Pulled cloud updated_at: " + row.updated_at);
+    setSyncStatus(`Last sync: ${fmtTime()} (settings)`);
 
     // Apply cloud settings to this device
     applyCloudSettingsToLocal(row.data);
 
   } catch (e) {
-    alert("Cloud pull crashed:\n" + e.message);
+    setSyncStatus(`Last sync: FAILED ${fmtTime()} (settings crashed)`);
   }
+}
+function stopAutoSync(){
+  if (lastSyncTimer) {
+    clearInterval(lastSyncTimer);
+    lastSyncTimer = null;
+  }
+}
+
+function startAutoSync(){
+  stopAutoSync();
+  // run once immediately, then every 60s
+  pullSettingsFromCloud();
+  lastSyncTimer = setInterval(() => {
+    if (navigator.onLine) pullSettingsFromCloud();
+  }, 60000);
 }
 // Push current settings to cloud (requires login)
 async function pushSettingsToCloud(){
@@ -707,15 +834,19 @@ async function sbSignIn() {
   if (!email || !password) return;
 
   const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
-  if (error) alert("Sign in failed:\n" + error.message);
-  else alert("Signed in ✅");
+  if (error) {
+    setSyncStatus(`Signed in: FAILED ${fmtTime()}`);
+    return;
+  }
+  setSyncStatus(`Signed in: OK ${fmtTime()}`);
+  startAutoSync();
 }
 
 async function sbSignOut() {
   await supabaseClient.auth.signOut();
-  alert("Signed out.");
+  stopAutoSync();
+  setSyncStatus(`Signed out ${fmtTime()}`);
 }
-
 // Optional: simple sign-in helpers (put buttons in Admin if you want)
 async function supabaseSignIn() {
   if (!supabaseClient) return;
@@ -754,6 +885,9 @@ async function supabaseSignOut() {
   }
 
   function migrateIfEmpty(){
+    // hide app until auth check completes
+    document.getElementById("appWrap").style.display = "none";
+    bootAuthAndAutoSync();
     const existing = loadJSON(STORAGE_KEY, []);
     if (existing.length > 0) return;
 
@@ -868,9 +1002,7 @@ async function supabaseSignOut() {
   $("tabFeed").onclick = ()=>showTab("tabFeed");
   $("tabSummary").onclick = ()=>showTab("tabSummary");
   $("tabAdmin").onclick = ()=>showTab("tabAdmin");
-  $("sbSignIn").onclick = sbSignIn;
-  $("sbSignOut").onclick = sbSignOut;
-  $("sbPull").onclick = pullSettingsFromCloud;
+  $("btnGateSignIn").onclick = sbSignIn;
 
   $("toggleTheme").onclick = ()=>{
     theme = (theme === "dark") ? "light" : "dark";
@@ -951,6 +1083,8 @@ async function supabaseSignOut() {
     saveRecords();
     lastLoggedEl.textContent = label;
     persistState();
+
+    pushEventToCloud(evt); // <-- add this
 
     // refresh views
     updateEggPenKpis();
@@ -1430,27 +1564,6 @@ document.getElementById("btnCloudPull").onclick = pullSettingsFromCloud;
 document.getElementById("btnCloudSignIn").onclick = supabaseSignIn;
 document.getElementById("btnCloudSignOut").onclick = supabaseSignOut;
 
-$("sbTestUpdate").onclick = async () => {
-  const { data: sess } = await supabaseClient.auth.getSession();
-  alert(sess.session ? "SIGNED IN ✅" : "NOT SIGNED IN ❌");
-
-  const payload = { test: Date.now() };
-
-  const { data, error } = await supabaseClient
-    .from("app_settings")
-    .update({ data: payload })
-    .eq("id", "main")
-    .select();
-
-  if (error) {
-    alert("UPDATE FAILED:\n" + error.message);
-    console.log(error);
-    return;
-  }
-
-  alert("UPDATE OK. Rows updated: " + (data ? data.length : 0));
-  console.log("updated rows:", data);
-};
 
   // Exports
   function downloadText(filename, content){
