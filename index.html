@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>House Logger (Offline)</title>
+  <title>FlockFlow</title>
 
   <style>
     :root{
@@ -78,7 +78,14 @@
       background: var(--panel);
       border-color: var(--panelBorder);
     }
-
+.tabContent{
+  max-width: 980px;
+  margin: 0 auto;
+}
+.pageWrap{
+  max-width: 1200px;
+  margin: 0 auto;
+}
     .btn{
       cursor:pointer;
       user-select:none;
@@ -106,6 +113,71 @@
 
     .nav{ display:flex; gap:8px; flex-wrap:wrap; margin: 10px 0; }
     .nav .btn{ padding:10px 12px; font-size:16px; }
+    /* Global header */
+.appHeader{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+  margin: 6px 0 10px;
+}
+.appTitle{
+  margin: 0;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+}
+.appSubtitle{
+  margin-top: 4px;
+  color: var(--muted);
+}
+.userBadge{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:8px 12px;
+  border-radius:999px;
+  border:1px solid var(--border);
+  background: color-mix(in srgb, var(--card) 90%, var(--bg) 10%);
+  font-size:13px;
+  color: var(--muted);
+  white-space:nowrap;
+}
+.userMenu details { position: relative; }
+.userMenu summary { list-style: none; }
+.userMenu summary::-webkit-details-marker { display:none; }
+
+.userPill{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:10px 12px;
+  border-radius:999px;
+  border:1px solid var(--border);
+  background: color-mix(in srgb, var(--card) 92%, var(--bg) 8%);
+  cursor:pointer;
+  font-size:14px;
+  font-weight:700;
+}
+
+.userDropdown{
+  position:absolute;
+  right:0;
+  top: calc(100% + 8px);
+  width: 240px;
+  background: var(--card);
+  border:1px solid var(--border);
+  border-radius:14px;
+  box-shadow: var(--shadow);
+  padding:12px;
+  z-index: 99999;
+}
+.userDot{
+  width:8px;
+  height:8px;
+  border-radius:50%;
+  background: color-mix(in srgb, var(--accent) 65%, #999 35%);
+}
     .topBar{
       display:flex;
       align-items:center;
@@ -113,6 +185,7 @@
       gap:12px;
       margin: 10px 0;
     }
+    
     .modeBtn{
       margin-left:auto;
     }
@@ -164,7 +237,66 @@
       font-size: 18px;
       padding: 12px 10px;
     }
+.gateOverlay{
+  position: fixed;
+  inset: 0;
+  display: none;              /* toggled by JS */
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  background: rgba(15, 18, 25, 0.45);
+  backdrop-filter: blur(10px);
+  z-index: 99999;
+}
 
+.gateCard{
+  width: min(520px, 100%);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  padding: 16px 16px 14px;
+}
+
+.gateGrid{
+  display: grid;
+  gap: 12px;
+}
+
+.gateInput{
+  width: 100%;
+  padding: 12px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--card2);
+  color: var(--text);
+  outline: none;
+}
+/* Ensure everything measures width sanely */
+* { box-sizing: border-box; }
+
+/* Keep child elements clipped to the card */
+.gateCard{
+  overflow: hidden;
+}
+
+/* Make the grid and its children never exceed the card width */
+.gateGrid{ width: 100%; }
+
+.gateInput{
+  width: 100%;
+  max-width: 100%;
+  display: block;
+}
+
+#btnGateSignIn{
+  width: 100%;
+  max-width: 100%;
+  display: block;
+}
+.gateInput:focus{
+  border-color: var(--panelBorder);
+}
     /* Slightly wider grid sizing so buttons don't look cramped */
     #pen2Boxes,
     #pen3Boxes{
@@ -180,17 +312,48 @@
 </head>
 
 <body>
-<div id="loginGate" class="card" style="max-width:520px; margin:40px auto; display:none;">
-  <h3 style="margin-top:0;">Sign in required</h3>
-  <div class="muted" style="margin-bottom:10px;">
-    Please sign in to use House Logger.
+<div id="loginGate" class="gateOverlay" style="display:none;">
+  <div class="gateCard">
+    <h3 style="margin:0 0 6px;">Sign in</h3>
+    <div class="muted" style="margin:0 0 14px;">
+      Please sign in to use FlockFlow.
+    </div>
+
+    <div class="gateGrid">
+      <div>
+        <div class="muted" style="font-size:12px; margin-bottom:6px;">Email</div>
+        <input id="gateEmail" class="gateInput" type="email" autocomplete="username" placeholder="you@company.com" />
+      </div>
+
+      <div>
+        <div class="muted" style="font-size:12px; margin-bottom:6px;">Password</div>
+        <input id="gatePassword" class="gateInput" type="password" autocomplete="current-password" placeholder="••••••••" />
+      </div>
+
+      <button class="btn btnWide" id="btnGateSignIn">Sign In</button>
+    </div>
+
+    <div id="gateErr" class="muted" style="margin-top:10px; color:#b00020; display:none;"></div>
   </div>
-  <button class="btn btnWide" id="btnGateSignIn">Sign In</button>
 </div>
 <div class="wrap" id="appWrap">
-  <h2>House Logger (Offline)</h2>
-  <div class="muted">Offline logging for eggs, floor eggs, egg defects, mortality, and feed. Export CSV anytime.</div>
-
+  <div class="appHeader">
+  <div>
+    <h2 class="appTitle">FlockFlow</h2>
+    <div class="appSubtitle">Online logging for eggs, mortality, and feed. Export CSV anytime.</div>
+  </div>
+<!-- Top-right user dropdown (this replaces the old "Signed in as") -->
+  <div class="userMenu" id="userMenu">
+    <details id="userDetails">
+      <summary class="userPill" id="userPill">Not signed in</summary>
+      <div class="userDropdown">
+        <div class="muted" style="font-size:12px; margin-bottom:8px;">Account</div>
+        <div id="userEmail" style="font-weight:700; margin-bottom:10px;">—</div>
+        <button class="btn btnSmall danger" id="btnGlobalSignOut">Sign out</button>
+      </div>
+    </details>
+  </div>
+</div>
   <div class="nav">
     <button class="btn" id="tabEggs">Eggs</button>
     <button class="btn" id="tabMortality">Mortality</button>
@@ -198,6 +361,8 @@
     <button class="btn" id="tabSummary">Summary</button>
     <button class="btn" id="tabAdmin" style="display:none;">Admin</button>
     <button class="btn modeBtn" id="toggleTheme" title="Toggle Light or Dark">Mode</button>
+   <!-- Add this inside <div class="nav"> ... </div> -->
+
   </div>
 
   <div class="card cardPop">
@@ -332,7 +497,7 @@
   <!-- MORTALITY VIEW -->
   <div id="viewMortality" style="display:none;">
     <div class="twoCol">
-      <div class="card">
+      <div class="card cardPop">
         <h3 class="sectionTitle">Mortality</h3>
         <div class="muted">Select a pen, then log dead or culled by sex.</div>
 
@@ -344,7 +509,7 @@
           <button class="btn btnSmall" id="mortPen5">Spares (M)</button>
         </div>
 
-        <div class="card softBlue" style="margin-top:12px;">
+        <div class="card" style="margin-top:12px;">
           <h4 class="sectionTitle">Log Mortality</h4>
           <div class="row" style="margin-top:8px;">
             <button class="btn btnWide" id="deadM">+1 Dead Male</button>
@@ -394,7 +559,7 @@
 
   <!-- FEED VIEW -->
   <div id="viewFeed" style="display:none;">
-    <div class="card">
+    <div class="card cardPop">
       <h3 class="sectionTitle">Feed to Weigh (lb, rounded to nearest tenth)</h3>
       <div class="muted">Uses inventory at selected Date and the most recent feed rates on or before that date.</div>
 
@@ -419,7 +584,7 @@
 
   <!-- SUMMARY VIEW -->
   <div id="viewSummary" style="display:none;">
-    <div class="card">
+    <div class="card cardPop">
       <div class="row" style="justify-content:space-between;">
         <div>
           <h3 class="sectionTitle">Summary</h3>
@@ -428,13 +593,6 @@
         <div class="row">
           <button class="btn btnSmall" id="sumDaily">Daily</button>
           <button class="btn btnSmall" id="sumWeekly">Weekly</button>
-         <div id="userInfo" style="
-           font-size:13px;
-           color:#666;
-           text-align:right;
-           min-width:200px;">
-           Not signed in
-         </div>
         </div>
       </div>
 
@@ -480,35 +638,26 @@
           <tbody id="feedSummaryTable"></tbody>
         </table>
       </div>
-
-      <div class="card" style="margin-top:12px;">
-        <h4 class="sectionTitle">Exports</h4>
-        <div class="row">
-          <button class="btn btnWide" id="exportDetail">Export Detail CSV</button>
-          <button class="btn btnWide" id="exportSummary">Export Summary CSV</button>
-        </div>
       </div>
     </div>
   </div>
 
   <!-- ADMIN VIEW -->
-  <div id="viewAdmin" style="display:none;">
+  <div id="viewAdmin" class="pageWrap" style="display:none;">
 
-   <div class="card">
+   <div class="card cardPop">
       <h3 class="sectionTitle">Admin</h3>
       <div class="muted">Edit birds placed, feed rates, and clear data.</div>
 
-    <div class="card softBlue" style="margin-top:12px;">
-      <h4 class="sectionTitle">Cloud Sync (Supabase)</h4>
+    <div class="card" style="margin-top:12px;">
+      <h4 class="sectionTitle">Cloud Sync</h4>
       <div class="muted">Tablet can pull settings. Only signed-in admins can push changes.</div>
       <div class="row" style="margin-top:10px;">
         <button class="btn btnSmall" id="btnCloudPull">Sync From Cloud</button>
-        <button class="btn btnSmall" id="btnCloudSignIn">Sign In</button>
-        <button class="btn btnSmall" id="btnCloudSignOut">Sign Out</button>
       </div>
     </div>
 
-      <div class="card cardPop">
+      <div class="card">
         <h4 class="sectionTitle">Birds Placed (management only)</h4>
         <table>
           <thead>
@@ -527,7 +676,7 @@
         </div>
       </div>
 
-      <div class="card cardPop">
+      <div class="card">
         <h4 class="sectionTitle">Feed Rates (lb per bird per day)</h4>
         <div class="muted">Changes are logged with timestamp for history.</div>
         <table>
@@ -546,14 +695,20 @@
           <button class="btn btnWide" id="saveRates">Save Feed Rates</button>
         </div>
       </div>
-
-      <div class="card">
+    
+        <div class="card">
+          <h4 class="sectionTitle">Exports</h4>
+          <div class="row" style="margin-top:10px;">
+            <button class="btn btnWide" id="exportDetail">Export Detail CSV</button>
+            <button class="btn btnWide" id="exportSummary">Export Summary CSV</button>
+          </div>
+        </div>
+        <div class="card">
         <h4 class="sectionTitle">Danger Zone</h4>
         <div class="row" style="margin-top:10px;">
           <button class="btn btnWide danger" id="clearAll">Clear ALL Data</button>
         </div>
       </div>
-
       <div class="card">
         <h4 class="sectionTitle">Change Admin PIN</h4>
         <div class="muted">Default PIN is 1234.</div>
@@ -598,17 +753,23 @@ window.supabaseClient = window.supabase.createClient(
   SUPABASE_URL,
   SUPABASE_ANON_KEY
 );
+// Alias so older helpers that use `supabaseClient` still work
+const supabaseClient = window.supabaseClient;
 function setUserDisplay(session){
-  const el = document.getElementById("userInfo");
-  if (!el) return;
+  const pill = document.getElementById("userPill");
+  const emailEl = document.getElementById("userEmail");
+  const details = document.getElementById("userDetails");
 
   if (!session) {
-    el.textContent = "Not signed in";
+    if (pill) pill.textContent = "Not signed in";
+    if (emailEl) emailEl.textContent = "—";
+    if (details) details.open = false;
     return;
   }
 
   const email = session.user?.email || "Unknown user";
-  el.textContent = `Signed in as: ${email}`;
+  if (pill) pill.textContent = email;
+  if (emailEl) emailEl.textContent = email;
 }
 let lastSyncTimer = null;
 
@@ -623,15 +784,20 @@ function fmtTime(d = new Date()){
 }
 // =================== AUTH GATE (HIDE APP UNLESS SIGNED IN) ===================
 function setUiSignedIn(isSignedIn){
-  const app = document.getElementById("appWrap");
+  const app  = document.getElementById("appWrap");
   const gate = document.getElementById("loginGate");
 
-  if (isSignedIn) {
-    if (gate) gate.style.display = "none";
-    if (app) app.style.display = "block";
-  } else {
-    if (app) app.style.display = "none";
-    if (gate) gate.style.display = "block";
+  // Never let BOTH be hidden
+  if (gate) gate.style.display = isSignedIn ? "none" : "flex";
+
+  if (app) {
+    // Keep app visible (so you can blur/see it behind the gate),
+    // but disable interaction while signed out
+    app.style.display = "block";
+    app.style.pointerEvents = isSignedIn ? "auto" : "none";
+    app.style.userSelect = isSignedIn ? "auto" : "none";
+    app.style.filter = isSignedIn ? "none" : "blur(6px)";
+    app.style.opacity = isSignedIn ? "1" : "0.9";
   }
 }
 
@@ -829,42 +995,61 @@ async function pushSettingsToCloud(){
   }
 }
 async function sbSignIn() {
-  const email = prompt("Supabase email:");
-  const password = prompt("Supabase password:");
-  if (!email || !password) return;
+  const emailEl = document.getElementById("gateEmail");
+  const passEl  = document.getElementById("gatePassword");
+  const errEl   = document.getElementById("gateErr");
 
-  const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+  const email = (emailEl?.value || "").trim();
+  const password = passEl?.value || "";
+
+  if (errEl) { errEl.style.display = "none"; errEl.textContent = ""; }
+
+  if (!email || !password) {
+    if (errEl) {
+      errEl.textContent = "Enter both email and password.";
+      errEl.style.display = "block";
+    }
+    return;
+  }
+
+  const { error } = await window.supabaseClient.auth.signInWithPassword({ email, password });
+
   if (error) {
+    if (errEl) {
+      errEl.textContent = error.message || "Sign in failed.";
+      errEl.style.display = "block";
+    }
     setSyncStatus(`Signed in: FAILED ${fmtTime()}`);
     return;
   }
+
   setSyncStatus(`Signed in: OK ${fmtTime()}`);
+  if (passEl) passEl.value = "";
   startAutoSync();
 }
 
 async function sbSignOut() {
-  await supabaseClient.auth.signOut();
+  try {
+    const { error } = await window.supabaseClient.auth.signOut();
+    if (error) throw error;
+  } catch (e) {
+    console.log("Sign out failed:", e?.message || e);
+  }
+
+  // Force local UI state immediately (don’t rely only on onAuthStateChange)
   stopAutoSync();
   setSyncStatus(`Signed out ${fmtTime()}`);
-}
-// Optional: simple sign-in helpers (put buttons in Admin if you want)
-async function supabaseSignIn() {
-  if (!supabaseClient) return;
-  const email = prompt("Supabase email:");
-  if (!email) return;
-  const password = prompt("Supabase password:");
-  if (!password) return;
+  setUserDisplay(null);
+  setUiSignedIn(false);
 
-  const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
-  if (error) alert("Sign in failed:\n\n" + error.message);
-  else alert("Signed in.");
+  // Debug proof:
+  const { data } = await window.supabaseClient.auth.getSession();
+  console.log("Session after signOut:", data.session);
 }
 
-async function supabaseSignOut() {
-  if (!supabaseClient) return;
-  await supabaseClient.auth.signOut();
-  alert("Signed out.");
-}
+
+
+
 // ====================================================================
 
   const $ = (id) => document.getElementById(id);
@@ -886,7 +1071,6 @@ async function supabaseSignOut() {
 
   function migrateIfEmpty(){
     // hide app until auth check completes
-    document.getElementById("appWrap").style.display = "none";
     bootAuthAndAutoSync();
     const existing = loadJSON(STORAGE_KEY, []);
     if (existing.length > 0) return;
@@ -1003,7 +1187,18 @@ async function supabaseSignOut() {
   $("tabSummary").onclick = ()=>showTab("tabSummary");
   $("tabAdmin").onclick = ()=>showTab("tabAdmin");
   $("btnGateSignIn").onclick = sbSignIn;
+document.getElementById("gatePassword")?.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") sbSignIn();
+});
+  $("btnGateSignIn").onclick = sbSignIn;
 
+// Global user dropdown sign-out
+const btnGlobalSignOut = document.getElementById("btnGlobalSignOut");
+if (btnGlobalSignOut) {
+  btnGlobalSignOut.onclick = async () => {
+    await sbSignOut();
+  };
+}
   $("toggleTheme").onclick = ()=>{
     theme = (theme === "dark") ? "light" : "dark";
     applyTheme();
@@ -1538,7 +1733,7 @@ async function supabaseSignOut() {
 
   $("clearAll").onclick = ()=>{
     if (!adminUnlocked) { alert("Unlock Admin first."); return; }
-    const ok = confirm("This will permanently delete ALL data in this browser for House Logger v8. Continue?");
+    const ok = confirm("This will permanently delete ALL data in this browser for FlockFlow v8. Continue?");
     if (!ok) return;
     records = [];
     saveRecords();
@@ -1561,9 +1756,7 @@ async function supabaseSignOut() {
   };
 
 document.getElementById("btnCloudPull").onclick = pullSettingsFromCloud;
-document.getElementById("btnCloudSignIn").onclick = supabaseSignIn;
-document.getElementById("btnCloudSignOut").onclick = supabaseSignOut;
-
+document.getElementById("btnGlobalSignOut").onclick = sbSignOut;
 
   // Exports
   function downloadText(filename, content){
