@@ -856,6 +856,79 @@ async function pushEventToCloud(evt){
     console.log("Cloud insert crashed:", e.message);
   }
 }
+function normalizeCloudEvent(row){
+  // Convert DB column names to your local record shape
+  return {
+    tsISO: row.tsISO ?? row.tsiso ?? null,
+    tsLocal: row.tsLocal ?? row.tslocal ?? null,
+    date: row.date,
+    caretaker: row.caretaker,
+    kind: row.kind,
+    pen: row.pen,
+    round: row.round,
+    box: row.box,
+    hole: row.hole,
+    defectType: row.defect_type ?? null,
+    action: row.action ?? null,
+    sex: row.sex ?? null,
+    value: row.value ?? null,
+    count: row.count ?? 1
+  };
+}
+
+function eventKey(e){
+  // Same idea as your migrate de-dupe key
+  return `${e.tsISO||""}|${e.kind||""}|${e.date||""}|${e.pen||""}|${e.round||""}|${e.box||""}|${e.hole||""}|${e.defectType||""}|${e.sex||""}|${e.action||""}|${e.value||""}`;
+}
+
+async function pullEventsFromCloud(startDate, endDate){
+  try {
+    if (!navigator.onLine) return;
+
+    const { data: sess } = await window.supabaseClient.auth.getSession();
+    if (!sess.session) throw new Error("Not signed in.");
+
+    // Pull a window (daily/weekly). Adjust as you like.
+    const { data, error } = await window.supabaseClient
+      .from("house_events")
+      .select("*")
+      .gte("date", startDate)
+      .lte("date", endDate)
+      .order("tsISO", { ascending: true });
+
+    if (error) {
+      console.log("Cloud events pull failed:", error.message);
+      setSyncStatus(`Last sync: FAILED ${fmtTime()} (events pull)`);
+      return;
+    }
+
+    const existingKeys = new Set(records.map(eventKey));
+    let added = 0;
+
+    for (const row of (data || [])){
+      const evt = normalizeCloudEvent(row);
+      const k = eventKey(evt);
+      if (existingKeys.has(k)) continue;
+      existingKeys.add(k);
+      records.push(evt);
+      added++;
+    }
+
+    if (added > 0) {
+      saveRecords();
+      // refresh views since records changed
+      updateEggPenKpis();
+      refreshMortalityPanel();
+      renderFeedTable();
+      renderSummary();
+    }
+
+    setSyncStatus(`Last sync: ${fmtTime()} (events${added ? ` +${added}` : ""})`);
+  } catch (e) {
+    console.log("Cloud events pull crashed:", e.message);
+    setSyncStatus(`Last sync: FAILED ${fmtTime()} (events crashed)`);
+  }
+}
 // Make this return EXACTLY your local settings shape.
 // You will edit this to match your current variables/objects.
 function numVal(id) {
@@ -960,12 +1033,25 @@ function stopAutoSync(){
   }
 }
 
+function getSyncRange(){
+  const d = dateEl?.value || todayStr;
+  const start = startOfWeek(d);
+  const end = addDays(start, 6);
+  return { start, end };
+}
+
 function startAutoSync(){
   stopAutoSync();
-  // run once immediately, then every 60s
+
+  const { start, end } = getSyncRange();
   pullSettingsFromCloud();
+  pullEventsFromCloud(start, end);
+
   lastSyncTimer = setInterval(() => {
-    if (navigator.onLine) pullSettingsFromCloud();
+    if (!navigator.onLine) return;
+    const r = getSyncRange();
+    pullSettingsFromCloud();
+    pullEventsFromCloud(r.start, r.end);
   }, 60000);
 }
 // Push current settings to cloud (requires login)
