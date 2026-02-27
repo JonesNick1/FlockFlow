@@ -1276,8 +1276,7 @@ async function sbSignOut() {
 document.getElementById("gatePassword")?.addEventListener("keydown", (e) => {
   if (e.key === "Enter") sbSignIn();
 });
-  $("btnGateSignIn").onclick = sbSignIn;
-
+  
 // Global user dropdown sign-out
 const btnGlobalSignOut = document.getElementById("btnGlobalSignOut");
 if (btnGlobalSignOut) {
@@ -1448,13 +1447,13 @@ if (btnGlobalSignOut) {
 
   function logFloorEgg(){
     const m = baseMeta();
-    logEvent({ ...m, kind:"egg_floor", round, pen:eggPen, count:1 }, `Floor egg Pen ${eggPen} @ ${m.tsLocal.split(" ")[1]}`);
-  }
-  function logDefect(defectType){
-    const m = baseMeta();
-    logEvent({ ...m, kind:"egg_defect", round, pen:eggPen, defectType, count:1 }, `${defectType} Pen ${eggPen} @ ${m.tsLocal.split(" ")[1]}`);
+    logEvent({ ...m, kind:"egg_floor", round, pen:eggPen, count:1 });
   }
 
+  function logDefect(defectType){
+    const m = baseMeta();
+    logEvent({ ...m, kind:"egg_defect", round, pen:eggPen, defectType, count:1 });
+  }
   function eggTotalsForPen(dateStr, roundNum, pen){
     let nest=0,floor=0,dirty=0,crack=0,dbl=0,cull=0;
     for (const r of records){
