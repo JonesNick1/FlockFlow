@@ -656,6 +656,20 @@
         <button class="btn btnSmall" id="btnCloudPull">Sync From Cloud</button>
         <button class="btn btnSmall" id="btnFullHistorySync">Sync All History (90 days)</button>
       </div>
+      <div class="row" style="margin-top:10px; align-items:flex-start;">
+        <label class="row" style="gap:8px; cursor:pointer; user-select:none;">
+          <input type="checkbox" id="togEventsAuto" />
+          <div>
+            <div style="font-weight:700;">Autosync Eggs + Mortality</div>
+            <div class="muted" style="font-size:12px;">OFF = settings still autosync, but egg/mort events won’t pull/push automatically.</div>
+          </div>
+        </label>
+        <div style="flex:1;"></div>
+        <button class="btn btnSmall" id="btnMasterPushNow" title="Overwrite cloud egg/mort events with THIS device">Master Push (Overwrite Cloud)</button>
+      </div>
+      <div class="muted" style="margin-top:8px; font-size:12px;">
+        Tip: If you turn Autosync ON, you’ll choose: Master autosync (push then pull), Normal autosync (pull then overwrite this device), or Cancel.
+      </div>
     </div>
 
       <div class="card">
@@ -739,6 +753,10 @@
   const STATE_KEY   = "house_logger_v8_state";
   const DEFAULT_PIN = "1234";
   const supabaseEnabled = true; // set false to disable cloud sync entirely
+  // Autosync control for Egg + Mortality events
+  let autosyncEventsEnabled = JSON.parse(localStorage.getItem("autosyncEventsEnabled") || "true");
+  // Startup choice when turning autosync ON: "master" (push then pull), "normal" (pull then overwrite local), or "cancel"
+  let eventsAutosyncStartupMode = localStorage.getItem("eventsAutosyncStartupMode") || "normal";
   const PENDING_EVENTS_KEY = "house_logger_v8_pending_events";
   let syncInFlight = false;
   let syncDebounceTimer = null;
@@ -835,10 +853,10 @@ async function bootAuthAndAutoSync(){
 
     if (currentSession) {
       startAutoSync();
-      // Immediately pull current week + previous week on boot so UI is populated
+      // Immediately pull current week on boot so UI is populated
       const r = getSyncRange();
       await pullSettingsFromCloud();
-      await pullEventsFromCloud(r.start, r.end);
+      await pullEventsForRange(r.start, r.end);
       setSyncStatus(`Last sync: ${fmtTime()} (boot)`);
     } else {
       stopAutoSync();
@@ -1022,14 +1040,18 @@ function pendingCount(){
     if (!navigator.onLine) return;
     syncInFlight = true;
     try {
-      // Use larger batches when there's a backlog
+      // Flush any pending house_events queue (legacy backlog)
       const pending = getPendingQueue().length;
-      const batchSize = pending > 1000 ? 500 : pending > 200 ? 300 : 200;
-      await flushPendingEventsToCloud(batchSize);
-      const r = getSyncRange();
+      if (pending > 0) {
+        const batchSize = pending > 1000 ? 500 : pending > 200 ? 300 : 200;
+        await flushPendingEventsToCloud(batchSize);
+      }
+      // Pull settings always
       await pullSettingsFromCloud();
-      await pullEventsFromCloud(r.start, r.end);
-      setSyncStatus(`Last sync: ${fmtTime()} (${reason})`);
+      const r = getSyncRange();
+      if (autosyncEventsEnabled) {
+        await pullEventsForRange(r.start, r.end);
+      }setSyncStatus(`Last sync: ${fmtTime()} (${reason})`);
       updatePendingBadge();
     } catch (e) {
       setSyncStatus(`Last sync: FAILED ${fmtTime()} (${reason})`);
@@ -1229,7 +1251,173 @@ function applyCloudSettingsToLocal(settings) {
   if (typeof rebuildFeedTable === "function") rebuildFeedTable();
   if (typeof refreshAll === "function") refreshAll();
 }
-// Pull latest settings from cloud (no login required)
+// =================== EVENTS SYNC (same pattern as settings) ===================
+// Push today's events as a JSON blob to app_settings, keyed by date.
+// This is identical to how pushSettingsToCloud works — proven reliable.
+async function ensureEventId(evt){
+  if (!evt.id) {
+    evt.id = (crypto?.randomUUID)
+      ? crypto.randomUUID()
+      : ("id_" + Date.now() + "_" + Math.random().toString(16).slice(2));
+  }
+  return evt;
+}
+
+// NORMAL background push should MERGE with cloud to avoid overwriting other devices.
+async function pushEventsForDateMerge(dateStr){
+  try {
+    if (!window.supabaseClient || !navigator.onLine) return;
+    const { data: sess } = await window.supabaseClient.auth.getSession();
+    if (!sess.session) return;
+
+    const rowId = `events_${dateStr}`;
+
+    const localDayEvents = records
+      .filter(r => ["egg_nest","egg_floor","egg_defect","mort"].includes(r.kind))
+      .filter(r => r.date === dateStr)
+      .map(e => ensureEventId(e));
+
+    // Pull existing cloud day
+    const { data: existingRow, error: readErr } = await window.supabaseClient
+      .from("app_settings")
+      .select("data")
+      .eq("id", rowId)
+      .maybeSingle();
+
+    if (readErr) {
+      console.log("pushEventsForDateMerge read failed:", readErr.code, "|", readErr.message);
+    }
+
+    const cloudEvents = existingRow?.data?.events || [];
+
+    // Merge by id (union)
+    const mergedById = new Map();
+    for (const e of cloudEvents) if (e?.id) mergedById.set(e.id, e);
+    for (const eP of localDayEvents) {
+      const e = (eP instanceof Promise) ? await eP : eP;
+      if (e?.id) mergedById.set(e.id, e);
+    }
+
+    const mergedEvents = Array.from(mergedById.values())
+      .sort((a,b) => String(a.tsISO||"").localeCompare(String(b.tsISO||"")));
+
+    const { data, error } = await window.supabaseClient
+      .from("app_settings")
+      .upsert({ id: rowId, data: { events: mergedEvents, date: dateStr } }, { onConflict: "id" })
+      .select("id");
+
+    if (error) {
+      console.log("pushEventsForDateMerge failed:", error.code, "|", error.message, "|", error.hint);
+    } else {
+      console.log(`[Push] merged ${mergedEvents.length} events for ${dateStr} → cloud OK`, data);
+    }
+  } catch (e) {
+    console.log("pushEventsForDateMerge crashed:", e.message);
+  }
+}
+
+// MASTER overwrite push (explicit) – replaces cloud with THIS device’s day events.
+async function pushEventsForDateOverwrite(dateStr){
+  try {
+    if (!window.supabaseClient || !navigator.onLine) return;
+    const { data: sess } = await window.supabaseClient.auth.getSession();
+    if (!sess.session) { alert("Not signed in."); return; }
+
+    const dayEvents = records
+      .filter(r => ["egg_nest","egg_floor","egg_defect","mort"].includes(r.kind))
+      .filter(r => r.date === dateStr);
+
+    dayEvents.forEach(e => ensureEventId(e));
+
+    const rowId = `events_${dateStr}`;
+    const { data, error } = await window.supabaseClient
+      .from("app_settings")
+      .upsert({ id: rowId, data: { events: dayEvents, date: dateStr } }, { onConflict: "id" })
+      .select("id");
+
+    if (error) {
+      console.log("pushEventsForDateOverwrite failed:", error.code, "|", error.message, "|", error.hint);
+    } else {
+      console.log(`[MasterPush] overwrote ${dayEvents.length} events for ${dateStr} → cloud OK`, data);
+    }
+  } catch(e) {
+    console.log("pushEventsForDateOverwrite crashed:", e.message);
+  }
+}
+
+// Keep existing call-sites working:
+async function pushEventsForDate(dateStr){
+  return pushEventsForDateMerge(dateStr);
+}
+
+// Pull events for a date range from app_settings blobs and merge into records.
+async function pullEventsForRange(startDate, endDate){
+  try {
+    if (!window.supabaseClient || !navigator.onLine) return;
+    const { data: sess } = await window.supabaseClient.auth.getSession();
+    if (!sess.session) return;
+
+    console.log(`[Pull] querying events from ${startDate} to ${endDate}`);
+
+    // Use like + filter instead of .in() with a long ID list
+    const { data, error } = await window.supabaseClient
+      .from("app_settings")
+      .select("id, data")
+      .like("id", "events_%")
+      .gte("id", `events_${startDate}`)
+      .lte("id", `events_${endDate}`);
+
+    if (error) {
+      console.log("pullEventsForRange failed:", error.message);
+      setSyncStatus(`Last sync: FAILED ${fmtTime()} (events pull)`);
+      return;
+    }
+
+    const existingIds = new Set(records.map(r => r.id).filter(Boolean));
+    let added = 0;
+
+    for (const row of (data || [])) {
+      const evts = row.data?.events || [];
+      for (const evt of evts) {
+        if (evt.id && existingIds.has(evt.id)) continue;
+        if (evt.id) existingIds.add(evt.id);
+        records.push(evt);
+        added++;
+      }
+    }
+
+    console.log(`[Pull] ${startDate}→${endDate}: fetched ${(data||[]).length} day-rows, added ${added} events`);
+
+    if (added > 0) {
+      saveRecords();
+      updateEggPenKpis();
+      refreshMortalityPanel();
+      renderFeedTable();
+      renderSummary();
+    }
+
+    setSyncStatus(`Last sync: ${fmtTime()} (events${added ? ` +${added}` : ""})`);
+  } catch(e) {
+    console.log("pullEventsForRange crashed:", e.message);
+    setSyncStatus(`Last sync: FAILED ${fmtTime()} (events crashed)`);
+  }
+}
+
+// Normal pull merges into local. Sometimes you want the cloud to become the source of truth on this device.
+async function pullEventsForRangeOverwriteLocal(startISO, endISO){
+  // Remove local egg/mort events in range first, then pull and add cloud events back
+  const startD = new Date(startISO + "T00:00:00");
+  const endD   = new Date(endISO   + "T00:00:00");
+  records = records.filter(r => {
+    if (!["egg_nest","egg_floor","egg_defect","mort"].includes(r.kind)) return true;
+    if (!r.date) return true;
+    const d = new Date(r.date + "T00:00:00");
+    return (d < startD || d > endD);
+  });
+  persistState();
+  await pullEventsForRange(startISO, endISO);
+}
+// Pull latest settings from cloud
 async function pullSettingsFromCloud(){
   try {
     const { data: sess } = await window.supabaseClient.auth.getSession();
@@ -1622,19 +1810,11 @@ if (btnGlobalSignOut) {
     lastLoggedEl.textContent = label;
     persistState();
 
-    // Always enqueue as fallback (handles offline case)
-    try { enqueueEventForCloud(evt); } catch(e) { console.log("enqueue failed:", e?.message); }
-
-    // Also attempt an immediate direct push (same as how savePlaced works)
-    // If it succeeds, remove from queue. If offline/fails, queue handles it on next sync.
+    // Push the full day's events as a blob — same pattern as savePlaced
+    const evtDate = evt.date || todayStr;
     if (supabaseEnabled && navigator.onLine && currentSession) {
-      pushEventToCloud(evt).then(ok => {
-        if (ok) removePendingById(evt.id);
-      }).catch(() => {});
+      pushEventsForDate(evtDate).catch(() => {});
     }
-
-    // Schedule a sync cycle for anything that didn't go directly
-    try { if (typeof scheduleSync === "function") scheduleSync("log"); } catch(e) {}
 
     // refresh views
     updateEggPenKpis();
@@ -1655,18 +1835,12 @@ if (btnGlobalSignOut) {
         renderFeedTable();
         renderSummary();
 
-        // Delete from cloud if it has a stable id
-        if (removed.id && supabaseEnabled && window.supabaseClient && currentSession) {
-          window.supabaseClient
-            .from("house_events")
-            .delete()
-            .eq("event_uuid", removed.id)   // match on event_uuid, not id
-            .then(({ error }) => {
-              if (error) console.log("Cloud delete failed for undo:", error.message);
-            });
-          // Also remove from pending queue in case it hadn't been pushed yet
-          removePendingById(removed.id);
+        // Re-push the day's blob with the event removed
+        if (supabaseEnabled && navigator.onLine && currentSession) {
+          pushEventsForDate(removed.date || todayStr).catch(() => {});
         }
+        // Also clean up legacy queue if present
+        if (removed.id) removePendingById(removed.id);
         return;
       }
     }
@@ -2129,8 +2303,106 @@ if (btnGlobalSignOut) {
     alert("PIN updated.");
   };
 
-document.getElementById("btnCloudPull").onclick = pullSettingsFromCloud;
+document.getElementById("btnCloudPull").onclick = async ()=>{
+  await pullSettingsFromCloud();
+  // If events autosync is OFF, allow manual one-time event pull without enabling autosync.
+  if (autosyncEventsEnabled || confirm("Also pull Eggs + Mortality events now? (does not change Autosync toggle)")) {
+    const r = getSyncRange();
+    await pullEventsForRange(r.start, r.end);
+  }
+};
 document.getElementById("btnGlobalSignOut").onclick = sbSignOut;
+
+  // --- Egg/Mort autosync toggle + Master mode flow ---
+  function enumerateDateStrings(startStr, endStr){
+    const out = [];
+    const d0 = new Date(startStr + "T00:00:00");
+    const d1 = new Date(endStr   + "T00:00:00");
+    for (let d = new Date(d0); d <= d1; d.setDate(d.getDate() + 1)){
+      out.push(d.toISOString().slice(0,10));
+    }
+    return out;
+  }
+
+  async function masterOverwritePushRange(startStr, endStr){
+    const dates = enumerateDateStrings(startStr, endStr);
+    for (const ds of dates){
+      await pushEventsForDateOverwrite(ds);
+    }
+  }
+
+  async function enableEventsAutosyncFlow(){
+    const choice = prompt(
+      "Enable Autosync for Eggs + Mortality\n\n" +
+      "Type 1, 2, or 3:\n" +
+      "1) MASTER autosync (PUSH local → cloud first, then PULL)\n" +
+      "2) NORMAL autosync (PULL cloud → overwrite this device first)\n" +
+      "3) Cancel"
+    );
+    if (!choice) return "cancel";
+    if (choice.trim() === "1") return "master";
+    if (choice.trim() === "2") return "normal";
+    return "cancel";
+  }
+
+  async function applyEventsAutosyncMode(mode){
+    const r = getSyncRange();
+    if (mode === "master") {
+      await masterOverwritePushRange(r.start, r.end);
+      await pullEventsForRange(r.start, r.end);
+    } else if (mode === "normal") {
+      await pullEventsForRangeOverwriteLocal(r.start, r.end);
+    }
+  }
+
+  const tog = document.getElementById("togEventsAuto");
+  if (tog){
+    tog.checked = !!autosyncEventsEnabled;
+    tog.onchange = async ()=>{
+      if (tog.checked){
+        const mode = await enableEventsAutosyncFlow();
+        if (mode === "cancel"){
+          tog.checked = false;
+          autosyncEventsEnabled = false;
+          localStorage.setItem("autosyncEventsEnabled", "false");
+          return;
+        }
+        autosyncEventsEnabled = true;
+        localStorage.setItem("autosyncEventsEnabled", "true");
+        eventsAutosyncStartupMode = mode;
+        localStorage.setItem("eventsAutosyncStartupMode", mode);
+
+        try {
+          await applyEventsAutosyncMode(mode);
+          alert(mode === "master"
+            ? "Autosync ON (MASTER). Pushed local events to cloud, then pulled."
+            : "Autosync ON (NORMAL). Pulled cloud events and overwrote this device for the range."
+          );
+        } catch(e){
+          alert("Autosync enable failed: " + e.message);
+        }
+      } else {
+        autosyncEventsEnabled = false;
+        localStorage.setItem("autosyncEventsEnabled", "false");
+        alert("Egg + Mortality autosync is OFF. Settings still autosync.");
+      }
+    };
+  }
+
+  const btnMasterPush = document.getElementById("btnMasterPushNow");
+  if (btnMasterPush){
+    btnMasterPush.onclick = async ()=>{
+      if (!adminUnlocked) { alert("Unlock Admin first."); return; }
+      const ok = confirm(
+        "WARNING:\n\nThis will OVERWRITE cloud egg + mortality data with THIS device's data " +
+        "for the current sync range.\n\nContinue?"
+      );
+      if (!ok) return;
+      const r = getSyncRange();
+      await masterOverwritePushRange(r.start, r.end);
+      alert("Master Push completed.");
+    };
+  }
 
   // Full history sync button — pulls last 90 days in weekly chunks to avoid memory overflow
   const btnFullHistory = document.getElementById("btnFullHistorySync");
@@ -2138,14 +2410,13 @@ document.getElementById("btnGlobalSignOut").onclick = sbSignOut;
     btnFullHistory.onclick = async () => {
       setSyncStatus(`Syncing full history...`);
       await pullSettingsFromCloud();
-      // Pull 90 days in 2-week chunks to avoid hitting memory/storage limits
+      // Pull 90 days in 2-week chunks
       let chunkEnd = addDays(todayStr, 1);
       let chunkStart = addDays(chunkEnd, -14);
       const hardStop = addDays(todayStr, -90);
-      let totalAdded = 0;
       while (dateToInt(chunkEnd) > dateToInt(hardStop)) {
         const start = dateToInt(chunkStart) < dateToInt(hardStop) ? hardStop : chunkStart;
-        await pullEventsFromCloud(start, chunkEnd);
+        await pullEventsForRange(start, chunkEnd);
         chunkEnd = addDays(chunkStart, -1);
         chunkStart = addDays(chunkEnd, -14);
       }
