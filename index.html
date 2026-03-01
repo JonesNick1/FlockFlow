@@ -835,7 +835,11 @@ async function bootAuthAndAutoSync(){
 
     if (currentSession) {
       startAutoSync();
-      scheduleSync("boot");
+      // Immediately pull current week + previous week on boot so UI is populated
+      const r = getSyncRange();
+      await pullSettingsFromCloud();
+      await pullEventsFromCloud(r.start, r.end);
+      setSyncStatus(`Last sync: ${fmtTime()} (boot)`);
     } else {
       stopAutoSync();
     }
@@ -1034,10 +1038,15 @@ function pendingCount(){
     }
   }
 
+let _debuggedCols = false;
 function normalizeCloudEvent(row){
-  // Convert DB column names to your local record shape
+  // One-time log to confirm exact column names returned by Supabase
+  if (!_debuggedCols) {
+    console.log("[Pull] Column names from Supabase:", Object.keys(row));
+    _debuggedCols = true;
+  }
   return {
-    id: row.event_uuid ?? null,   // event_uuid is the app's stable UUID
+    id: row.event_uuid ?? null,
     tsISO: row.tsISO ?? row.tsiso ?? null,
     tsLocal: row.tsLocal ?? row.tslocal ?? null,
     date: row.date,
@@ -1056,7 +1065,10 @@ function normalizeCloudEvent(row){
 }
 
 function eventKey(e){
-  // Same idea as your migrate de-dupe key
+  // If the event has a stable UUID, use it alone — this prevents same-position eggs
+  // from different devices being incorrectly collapsed into one record.
+  if (e.id) return `uuid:${e.id}`;
+  // Fallback for legacy records without an id: use field-based key
   return `${e.tsISO||""}|${e.kind||""}|${e.date||""}|${e.pen||""}|${e.round||""}|${e.box||""}|${e.hole||""}|${e.defectType||""}|${e.sex||""}|${e.action||""}|${e.value||""}`;
 }
 
@@ -1067,32 +1079,42 @@ async function pullEventsFromCloud(startDate, endDate){
     const { data: sess } = await window.supabaseClient.auth.getSession();
     if (!sess.session) throw new Error("Not signed in.");
 
-    // Pull a window (daily/weekly). Adjust as you like.
-    const { data, error } = await window.supabaseClient
-      .from("house_events")
-      .select("*")
-      .gte("date", startDate)
-      .lte("date", endDate)
-      .order("date", { ascending: true });  // use 'date' — always exists and avoids tsISO/tsiso casing issues
+    // Paginate to get ALL rows — Supabase default limit is 1000
+    const PAGE_SIZE = 1000;
+    let allRows = [];
+    let page = 0;
+    while (true) {
+      const { data, error } = await window.supabaseClient
+        .from("house_events")
+        .select("*")
+        .gte("date", startDate)
+        .lte("date", endDate)
+        .order("date", { ascending: true })
+        .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
 
-    if (error) {
-      console.log("Cloud events pull failed:", error.message);
-      setSyncStatus(`Last sync: FAILED ${fmtTime()} (events pull)`);
-      return;
+      if (error) {
+        console.log("Cloud events pull failed:", error.message);
+        setSyncStatus(`Last sync: FAILED ${fmtTime()} (events pull)`);
+        return;
+      }
+
+      allRows = allRows.concat(data || []);
+      if (!data || data.length < PAGE_SIZE) break; // last page
+      page++;
     }
 
-    // Build two dedup sets: by id (exact) and by eventKey (fallback for older records without id)
-    const existingIds   = new Set(records.map(r => r.id).filter(Boolean));
-    const existingKeys  = new Set(records.map(eventKey));
-    let added = 0;
+    console.log(`[Pull] range ${startDate}→${endDate}, cloud returned ${allRows.length} rows, local records: ${records.length}`);
 
-    for (const row of (data || [])){
+    const existingIds  = new Set(records.map(r => r.id).filter(Boolean));
+    const existingKeys = new Set(records.map(eventKey));
+    let added = 0, skippedId = 0, skippedKey = 0;
+
+    for (const row of allRows){
       const evt = normalizeCloudEvent(row);
 
-      // Prefer id-based dedup; fall back to key-based
-      if (evt.id && existingIds.has(evt.id)) continue;
+      if (evt.id && existingIds.has(evt.id)) { skippedId++; continue; }
       const k = eventKey(evt);
-      if (existingKeys.has(k)) continue;
+      if (existingKeys.has(k)) { skippedKey++; continue; }
 
       if (evt.id) existingIds.add(evt.id);
       existingKeys.add(k);
@@ -1100,9 +1122,10 @@ async function pullEventsFromCloud(startDate, endDate){
       added++;
     }
 
+    console.log(`[Pull] added: ${added}, skipped by id: ${skippedId}, skipped by key: ${skippedKey}`);
+
     if (added > 0) {
       saveRecords();
-      // refresh views since records changed
       updateEggPenKpis();
       refreshMortalityPanel();
       renderFeedTable();
@@ -1238,13 +1261,7 @@ function stopAutoSync(){
 
 function getSyncRange(){
   const d = dateEl?.value || todayStr;
-  // If we have very few records (fresh device), pull a wide window to catch up
-  if (records.filter(r => r.kind === "egg_nest" || r.kind === "egg_floor" || r.kind === "mort").length < 10) {
-    // Pull last 90 days on a fresh/empty device
-    const start = addDays(todayStr, -90);
-    return { start, end: addDays(todayStr, 1) };
-  }
-  // Otherwise pull selected week ± 1 week buffer
+  // Pull selected week ± 1 week buffer for routine sync
   const start = addDays(startOfWeek(d), -7);
   const end = addDays(startOfWeek(d), 13);
   return { start, end };
@@ -1400,6 +1417,15 @@ async function sbSignOut() {
 
   migrateIfEmpty();
 
+  // If localStorage cache is oversized (>3MB), clear it — cloud will repopulate
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY) || "";
+    if (raw.length > 3 * 1024 * 1024) {
+      console.warn("Clearing oversized localStorage cache — cloud is source of truth");
+      localStorage.removeItem(STORAGE_KEY);
+    }
+  } catch(e) {}
+
   let records = loadJSON(STORAGE_KEY, []);
   let state   = loadJSON(STATE_KEY, {});
 
@@ -1443,7 +1469,24 @@ async function sbSignOut() {
       theme
     });
   }
-  function saveRecords(){ saveJSON(STORAGE_KEY, records); }
+  // records = full in-memory dataset (lives in RAM)
+  // localStorage only caches today's events + settings events as a safety net.
+  // Everything else is pulled fresh from the cloud on boot.
+  function saveRecords(){
+    try {
+      const today = dateEl?.value || todayStr;
+      const toCache = records.filter(r =>
+        r.kind === "placed" || r.kind === "rate" || r.date === today
+      );
+      saveJSON(STORAGE_KEY, toCache);
+    } catch(e) {
+      // If even that's too large, just clear old cache — cloud has the data
+      try {
+        localStorage.removeItem(STORAGE_KEY);
+        console.warn("saveRecords: cleared localStorage cache — cloud is source of truth");
+      } catch(e2) {}
+    }
+  }
 
   function baseMeta(){
     return {
@@ -1697,7 +1740,11 @@ if (btnGlobalSignOut) {
   }
   function eggTotalsForPen(dateStr, roundNum, pen){
     let nest=0,floor=0,dirty=0,crack=0,dbl=0,cull=0;
+    let debugSample = null;
     for (const r of records){
+      if (r.kind === "egg_nest" && r.date === dateStr && !debugSample) {
+        debugSample = { pen: r.pen, penType: typeof r.pen, round: r.round, roundType: typeof r.round };
+      }
       if (r.date!==dateStr) continue;
       if (r.round!==roundNum) continue;
       if (r.pen!==pen) continue;
@@ -1710,6 +1757,7 @@ if (btnGlobalSignOut) {
         if (r.defectType==="Cull") cull++;
       }
     }
+    if (debugSample) console.log(`[eggTotals] date=${dateStr} roundNum=${roundNum}(${typeof roundNum}) pen=${pen}(${typeof pen}) | sample record:`, debugSample, `| nest=${nest}`);
     return {nest,floor,total:nest+floor,dirty,crack,dbl,cull};
   }
 
@@ -2084,15 +2132,24 @@ if (btnGlobalSignOut) {
 document.getElementById("btnCloudPull").onclick = pullSettingsFromCloud;
 document.getElementById("btnGlobalSignOut").onclick = sbSignOut;
 
-  // Full history sync button — pulls last 90 days regardless of current range
+  // Full history sync button — pulls last 90 days in weekly chunks to avoid memory overflow
   const btnFullHistory = document.getElementById("btnFullHistorySync");
   if (btnFullHistory) {
     btnFullHistory.onclick = async () => {
       setSyncStatus(`Syncing full history...`);
-      const start = addDays(todayStr, -90);
-      const end = addDays(todayStr, 1);
       await pullSettingsFromCloud();
-      await pullEventsFromCloud(start, end);
+      // Pull 90 days in 2-week chunks to avoid hitting memory/storage limits
+      let chunkEnd = addDays(todayStr, 1);
+      let chunkStart = addDays(chunkEnd, -14);
+      const hardStop = addDays(todayStr, -90);
+      let totalAdded = 0;
+      while (dateToInt(chunkEnd) > dateToInt(hardStop)) {
+        const start = dateToInt(chunkStart) < dateToInt(hardStop) ? hardStop : chunkStart;
+        await pullEventsFromCloud(start, chunkEnd);
+        chunkEnd = addDays(chunkStart, -1);
+        chunkStart = addDays(chunkEnd, -14);
+      }
+      setSyncStatus(`Last sync: ${fmtTime()} (full history complete)`);
     };
   }
 
