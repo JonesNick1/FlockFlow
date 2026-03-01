@@ -1579,18 +1579,19 @@ if (btnGlobalSignOut) {
     lastLoggedEl.textContent = label;
     persistState();
 
-    // Queue + sync should NEVER be allowed to break data entry
-try {
-  enqueueEventForCloud(evt);
-} catch (e) {
-  console.log("enqueueEventForCloud failed:", e?.message || e);
-}
+    // Always enqueue as fallback (handles offline case)
+    try { enqueueEventForCloud(evt); } catch(e) { console.log("enqueue failed:", e?.message); }
 
-try {
-  if (typeof scheduleSync === "function") scheduleSync("log");
-} catch (e) {
-  console.log("scheduleSync failed:", e?.message || e);
-}
+    // Also attempt an immediate direct push (same as how savePlaced works)
+    // If it succeeds, remove from queue. If offline/fails, queue handles it on next sync.
+    if (supabaseEnabled && navigator.onLine && currentSession) {
+      pushEventToCloud(evt).then(ok => {
+        if (ok) removePendingById(evt.id);
+      }).catch(() => {});
+    }
+
+    // Schedule a sync cycle for anything that didn't go directly
+    try { if (typeof scheduleSync === "function") scheduleSync("log"); } catch(e) {}
 
     // refresh views
     updateEggPenKpis();
