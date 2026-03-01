@@ -654,6 +654,7 @@
       <div class="muted">Tablet can pull settings. Only signed-in admins can push changes.</div>
       <div class="row" style="margin-top:10px;">
         <button class="btn btnSmall" id="btnCloudPull">Sync From Cloud</button>
+        <button class="btn btnSmall" id="btnFullHistorySync">Sync All History (90 days)</button>
       </div>
     </div>
 
@@ -1169,31 +1170,33 @@ function applySettingsObjectToLocal(obj) {
 function applyCloudSettingsToLocal(settings) {
   // settings = { placed: { "1":{m,f}... }, rates: { "1":{m,f}... } }
   // Write directly to the event log WITHOUT triggering cloud re-queue.
-  // We use a silent version of logSetting that skips enqueueEventForCloud.
+  // Only add a settings event if the value differs from the most recent one already stored.
+
+  function getLastSettingValue(kind, pen, sex) {
+    // Find the most recently logged value for this setting
+    for (let i = records.length - 1; i >= 0; i--) {
+      const r = records[i];
+      if (r.kind === kind && r.pen === pen && r.sex === sex) return r.value;
+    }
+    return null;
+  }
+
+  function addSettingIfChanged(kind, pen, sex, newVal) {
+    const current = getLastSettingValue(kind, pen, sex);
+    if (current === newVal) return; // already up to date, skip
+    const evt = { ...baseMeta(), kind, pen, sex, value: newVal };
+    evt.id = crypto?.randomUUID ? crypto.randomUUID() : ("id_" + Date.now() + "_" + Math.random().toString(16).slice(2));
+    records.push(evt);
+  }
 
   for (let pen = 1; pen <= 5; pen++) {
     const p = (settings.placed && settings.placed[String(pen)]) ? settings.placed[String(pen)] : { m: 0, f: 0 };
     const r = (settings.rates  && settings.rates[String(pen)])  ? settings.rates[String(pen)]  : { m: 0, f: 0 };
 
-    // Birds placed — log silently (no cloud queue, no UI refresh yet)
-    const mPlaced = { ...baseMeta(), kind:"placed", pen, sex:"M", value: p.m ?? 0 };
-    mPlaced.id = mPlaced.id || (crypto?.randomUUID ? crypto.randomUUID() : ("id_" + Date.now() + "_" + Math.random().toString(16).slice(2)));
-    records.push(mPlaced);
-    if (pen !== 5) {
-      const fPlaced = { ...baseMeta(), kind:"placed", pen, sex:"F", value: p.f ?? 0 };
-      fPlaced.id = fPlaced.id || (crypto?.randomUUID ? crypto.randomUUID() : ("id_" + Date.now() + "_" + Math.random().toString(16).slice(2)));
-      records.push(fPlaced);
-    }
-
-    // Feed rates — log silently
-    const mRate = { ...baseMeta(), kind:"rate", pen, sex:"M", value: r.m ?? 0 };
-    mRate.id = mRate.id || (crypto?.randomUUID ? crypto.randomUUID() : ("id_" + Date.now() + "_" + Math.random().toString(16).slice(2)));
-    records.push(mRate);
-    if (pen !== 5) {
-      const fRate = { ...baseMeta(), kind:"rate", pen, sex:"F", value: r.f ?? 0 };
-      fRate.id = fRate.id || (crypto?.randomUUID ? crypto.randomUUID() : ("id_" + Date.now() + "_" + Math.random().toString(16).slice(2)));
-      records.push(fRate);
-    }
+    addSettingIfChanged("placed", pen, "M", p.m ?? 0);
+    if (pen !== 5) addSettingIfChanged("placed", pen, "F", p.f ?? 0);
+    addSettingIfChanged("rate", pen, "M", r.m ?? 0);
+    if (pen !== 5) addSettingIfChanged("rate", pen, "F", r.f ?? 0);
   }
 
   saveRecords();
@@ -1235,8 +1238,15 @@ function stopAutoSync(){
 
 function getSyncRange(){
   const d = dateEl?.value || todayStr;
-  const start = startOfWeek(d);
-  const end = addDays(start, 6);
+  // If we have very few records (fresh device), pull a wide window to catch up
+  if (records.filter(r => r.kind === "egg_nest" || r.kind === "egg_floor" || r.kind === "mort").length < 10) {
+    // Pull last 90 days on a fresh/empty device
+    const start = addDays(todayStr, -90);
+    return { start, end: addDays(todayStr, 1) };
+  }
+  // Otherwise pull selected week ± 1 week buffer
+  const start = addDays(startOfWeek(d), -7);
+  const end = addDays(startOfWeek(d), 13);
   return { start, end };
 }
 
@@ -2072,6 +2082,18 @@ try {
 
 document.getElementById("btnCloudPull").onclick = pullSettingsFromCloud;
 document.getElementById("btnGlobalSignOut").onclick = sbSignOut;
+
+  // Full history sync button — pulls last 90 days regardless of current range
+  const btnFullHistory = document.getElementById("btnFullHistorySync");
+  if (btnFullHistory) {
+    btnFullHistory.onclick = async () => {
+      setSyncStatus(`Syncing full history...`);
+      const start = addDays(todayStr, -90);
+      const end = addDays(todayStr, 1);
+      await pullSettingsFromCloud();
+      await pullEventsFromCloud(start, end);
+    };
+  }
 
   // Flush aggressively when tab becomes visible or device comes back online
   document.addEventListener("visibilitychange", () => {
