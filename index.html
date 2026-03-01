@@ -737,6 +737,10 @@
   const STORAGE_KEY = "house_logger_v8_records";
   const STATE_KEY   = "house_logger_v8_state";
   const DEFAULT_PIN = "1234";
+  const supabaseEnabled = true; // set false to disable cloud sync entirely
+  const PENDING_EVENTS_KEY = "house_logger_v8_pending_events";
+  let syncInFlight = false;
+  let syncDebounceTimer = null;
 
   const LEGACY_KEYS = [
     { records: "house_logger_v7_records", state: "house_logger_v7_state" },
@@ -753,6 +757,22 @@ window.supabaseClient = window.supabase.createClient(
   SUPABASE_URL,
   SUPABASE_ANON_KEY
 );
+  // Cache session to avoid repeated getSession() calls (prevents auth lock races)
+  let currentSession = null;
+  window.supabaseClient.auth.onAuthStateChange((_event, session) => {
+    currentSession = session || null;
+    // keep UI updated
+    setUserDisplay(currentSession);
+    setUiSignedIn(!!currentSession);
+    if (currentSession) {
+      // run a sync shortly after auth is ready
+      scheduleSync("login");
+      startAutoSync();
+    } else {
+      stopAutoSync();
+    }
+  });
+
 // Alias so older helpers that use `supabaseClient` still work
 const supabaseClient = window.supabaseClient;
 function setUserDisplay(session){
@@ -803,37 +823,39 @@ function setUiSignedIn(isSignedIn){
 
 // Runs on every page load
 async function bootAuthAndAutoSync(){
-  const { data } = await window.supabaseClient.auth.getSession();
-  const signedIn = !!data.session;
-  
-  setUserDisplay(data.session);
-  setUiSignedIn(signedIn);
+  if (!supabaseEnabled || !window.supabaseClient) return;
 
-  // If signed in, auto-pull so refresh updates without needing the button
-  if (signedIn) {
-    await pullSettingsFromCloud(); // pulls latest settings
+  try {
+    const { data } = await window.supabaseClient.auth.getSession();
+    currentSession = data.session || null;
+
+    setUserDisplay(currentSession);
+    setUiSignedIn(!!currentSession);
+
+    if (currentSession) {
+      startAutoSync();
+      scheduleSync("boot");
+    } else {
+      stopAutoSync();
+    }
+  } catch (e) {
+    console.log("bootAuthAndAutoSync crashed:", e?.message || e);
   }
 }
 
+
 // React to sign-in / sign-out events
-window.supabaseClient.auth.onAuthStateChange(async (_event, session) => {
-  const signedIn = !!session;
-  
-  setUiSignedIn(signedIn);
-  setUserDisplay(session);
-  
-  if (signedIn) {
-    await pullSettingsFromCloud();
-  }
-});
+// Push ONE event. Return true if inserted, false if not.
 async function pushEventToCloud(evt){
   try {
-    if (!navigator.onLine) return;
+    if (!navigator.onLine) return false;
+    if (!currentSession) return false;
 
     const payload = {
-      date: evt.date,
-      caretaker: evt.caretaker,
-      kind: evt.kind,
+      event_uuid: evt.id,
+      date: evt.date ?? null,
+      caretaker: evt.caretaker ?? null,
+      kind: evt.kind ?? null,
       pen: evt.pen ?? null,
       round: evt.round ?? null,
       box: evt.box ?? null,
@@ -849,16 +871,172 @@ async function pushEventToCloud(evt){
 
     const { error } = await window.supabaseClient
       .from("house_events")
-      .insert([payload]);
+      .upsert([payload], { onConflict: "event_uuid" });
 
-    if (error) console.log("Cloud insert failed:", error.message);
+    if (error) {
+      console.log("Cloud upsert failed:", error?.code, "|", error?.message, "|", error?.hint, "|", error?.details);
+      return false;
+    }
+    return true;
   } catch (e) {
-    console.log("Cloud insert crashed:", e.message);
+    console.log("Cloud upsert crashed:", e);
+    return false;
   }
 }
+
+  // =================== PENDING UPLOAD QUEUE ===================
+  function setPendingQueue(q){
+  try {
+    const capped = (q || []).slice(-10000); // keep last 10k events max
+    localStorage.setItem(PENDING_EVENTS_KEY, JSON.stringify(capped));
+  } catch {}
+}
+function getPendingQueue(){
+  try { return JSON.parse(localStorage.getItem(PENDING_EVENTS_KEY) || "[]"); }
+  catch { return []; }
+}
+
+
+function enqueueEventForCloud(evt){
+  if (!evt) return;
+
+  // Ensure stable id
+  evt.id = evt.id || (crypto?.randomUUID ? crypto.randomUUID()
+    : ("id_" + Date.now() + "_" + Math.random().toString(16).slice(2)));
+
+  const q = getPendingQueue();
+
+  // Deduplicate by id
+  if (q.some(x => x && x.id === evt.id)) return;
+
+  q.push(evt);
+  setPendingQueue(q);
+}
+
+function removePendingById(id){
+  if (!id) return;
+  const q = getPendingQueue();
+  setPendingQueue(q.filter(x => x && x.id !== id));
+}
+
+function pendingCount(){
+  return getPendingQueue().length;
+}
+  function updatePendingBadge(){
+    // optional: show pending count in sync footer
+    const el = $("syncStatus");
+    if (!el) return;
+    const txt = el.textContent || "";
+    const q = getPendingQueue();
+    const cleaned = txt.replace(/\s*\(pending\s*\d+\)\s*$/, "");
+    el.textContent = cleaned + (q.length ? ` (pending ${q.length})` : "");
+  }
+  async function flushPendingEventsToCloud(maxItems = 200){
+  if (!supabaseEnabled) return;
+  if (!window.supabaseClient) return;
+  if (!navigator.onLine) return;
+  if (!currentSession) return; // must be signed in to push
+
+  let q = getPendingQueue();
+  if (!q.length) { updatePendingBadge(); return; }
+
+  // === HEAL: fix any events with non-UUID ids (e.g. old numeric or malformed ids) ===
+  // These cause the bigint/text mismatch 400 error. Reassign them a proper UUID.
+  let healed = false;
+  const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  q = q.map(evt => {
+    if (!evt) return evt;
+    if (!evt.id || !uuidPattern.test(String(evt.id))) {
+      evt.id = crypto?.randomUUID ? crypto.randomUUID() : ("id_" + Date.now() + "_" + Math.random().toString(16).slice(2));
+      healed = true;
+    }
+    return evt;
+  });
+  if (healed) setPendingQueue(q);
+
+  const batch = q.slice(0, maxItems);
+
+  // Build payloads (use event_uuid for dedupe — id column stays as bigint identity)
+  const toInt = v => { const n = parseInt(v, 10); return Number.isFinite(n) ? n : null; };
+  const toNum = v => { const n = parseFloat(v); return Number.isFinite(n) ? n : null; };
+  const payloads = batch.map(evt => ({
+    event_uuid: evt.id,  // app UUID → event_uuid column
+    date: evt.date ?? null,
+    caretaker: evt.caretaker ?? null,
+    kind: evt.kind ?? null,
+    pen: toInt(evt.pen),
+    round: toInt(evt.round),
+    box: evt.box ?? null,
+    hole: toInt(evt.hole),
+    defect_type: evt.defectType ?? null,
+    action: evt.action ?? null,
+    sex: evt.sex ?? null,
+    value: toNum(evt.value),
+    count: toInt(evt.count) ?? 1,
+    tsISO: evt.tsISO ?? null,
+    tsLocal: evt.tsLocal ?? null
+  }));
+
+  const { error } = await window.supabaseClient
+    .from("house_events")
+    .upsert(payloads, { onConflict: "event_uuid" });
+
+  if (error) {
+    console.log("Cloud upsert failed (flush):", error?.code, "|", error?.message, "|", error?.hint, "|", error?.details);
+    updatePendingBadge();
+    return;
+  }
+
+  // remove sent items
+  const remaining = q.slice(batch.length);
+  setPendingQueue(remaining);
+  updatePendingBadge();
+
+  // === localStorage size guard: warn if records are getting large ===
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY) || "";
+    const kb = Math.round(raw.length / 1024);
+    if (kb > 3000) { // warn at 3MB (localStorage limit is ~5MB)
+      console.warn(`FlockFlow: localStorage records is ${kb}KB — approaching limit.`);
+      setSyncStatus(`Last sync: ${fmtTime()} ⚠️ Storage ${kb}KB (limit ~5000KB)`);
+    }
+  } catch {}
+}
+
+  function scheduleSync(reason="auto"){
+    if (!supabaseEnabled) return;
+    if (!window.supabaseClient) return;
+    if (syncDebounceTimer) clearTimeout(syncDebounceTimer);
+    syncDebounceTimer = setTimeout(() => {
+      syncDebounceTimer = null;
+      runSyncCycle(reason);
+    }, 800);
+  }
+  async function runSyncCycle(reason="auto"){
+    if (syncInFlight) return;
+    if (!navigator.onLine) return;
+    syncInFlight = true;
+    try {
+      // Use larger batches when there's a backlog
+      const pending = getPendingQueue().length;
+      const batchSize = pending > 1000 ? 500 : pending > 200 ? 300 : 200;
+      await flushPendingEventsToCloud(batchSize);
+      const r = getSyncRange();
+      await pullSettingsFromCloud();
+      await pullEventsFromCloud(r.start, r.end);
+      setSyncStatus(`Last sync: ${fmtTime()} (${reason})`);
+      updatePendingBadge();
+    } catch (e) {
+      setSyncStatus(`Last sync: FAILED ${fmtTime()} (${reason})`);
+    } finally {
+      syncInFlight = false;
+    }
+  }
+
 function normalizeCloudEvent(row){
   // Convert DB column names to your local record shape
   return {
+    id: row.event_uuid ?? null,   // event_uuid is the app's stable UUID
     tsISO: row.tsISO ?? row.tsiso ?? null,
     tsLocal: row.tsLocal ?? row.tslocal ?? null,
     date: row.date,
@@ -894,7 +1072,7 @@ async function pullEventsFromCloud(startDate, endDate){
       .select("*")
       .gte("date", startDate)
       .lte("date", endDate)
-      .order("tsISO", { ascending: true });
+      .order("date", { ascending: true });  // use 'date' — always exists and avoids tsISO/tsiso casing issues
 
     if (error) {
       console.log("Cloud events pull failed:", error.message);
@@ -902,13 +1080,20 @@ async function pullEventsFromCloud(startDate, endDate){
       return;
     }
 
-    const existingKeys = new Set(records.map(eventKey));
+    // Build two dedup sets: by id (exact) and by eventKey (fallback for older records without id)
+    const existingIds   = new Set(records.map(r => r.id).filter(Boolean));
+    const existingKeys  = new Set(records.map(eventKey));
     let added = 0;
 
     for (const row of (data || [])){
       const evt = normalizeCloudEvent(row);
+
+      // Prefer id-based dedup; fall back to key-based
+      if (evt.id && existingIds.has(evt.id)) continue;
       const k = eventKey(evt);
       if (existingKeys.has(k)) continue;
+
+      if (evt.id) existingIds.add(evt.id);
       existingKeys.add(k);
       records.push(evt);
       added++;
@@ -983,20 +1168,35 @@ function applySettingsObjectToLocal(obj) {
 }
 function applyCloudSettingsToLocal(settings) {
   // settings = { placed: { "1":{m,f}... }, rates: { "1":{m,f}... } }
-  // Write to your event log so it becomes the local truth on this device.
+  // Write directly to the event log WITHOUT triggering cloud re-queue.
+  // We use a silent version of logSetting that skips enqueueEventForCloud.
 
   for (let pen = 1; pen <= 5; pen++) {
     const p = (settings.placed && settings.placed[String(pen)]) ? settings.placed[String(pen)] : { m: 0, f: 0 };
     const r = (settings.rates  && settings.rates[String(pen)])  ? settings.rates[String(pen)]  : { m: 0, f: 0 };
 
-    // Birds placed
-    logSetting("placed", pen, "M", p.m ?? 0);
-    if (pen !== 5) logSetting("placed", pen, "F", p.f ?? 0);
+    // Birds placed — log silently (no cloud queue, no UI refresh yet)
+    const mPlaced = { ...baseMeta(), kind:"placed", pen, sex:"M", value: p.m ?? 0 };
+    mPlaced.id = mPlaced.id || (crypto?.randomUUID ? crypto.randomUUID() : ("id_" + Date.now() + "_" + Math.random().toString(16).slice(2)));
+    records.push(mPlaced);
+    if (pen !== 5) {
+      const fPlaced = { ...baseMeta(), kind:"placed", pen, sex:"F", value: p.f ?? 0 };
+      fPlaced.id = fPlaced.id || (crypto?.randomUUID ? crypto.randomUUID() : ("id_" + Date.now() + "_" + Math.random().toString(16).slice(2)));
+      records.push(fPlaced);
+    }
 
-    // Feed rates
-    logSetting("rate", pen, "M", r.m ?? 0);
-    if (pen !== 5) logSetting("rate", pen, "F", r.f ?? 0);
+    // Feed rates — log silently
+    const mRate = { ...baseMeta(), kind:"rate", pen, sex:"M", value: r.m ?? 0 };
+    mRate.id = mRate.id || (crypto?.randomUUID ? crypto.randomUUID() : ("id_" + Date.now() + "_" + Math.random().toString(16).slice(2)));
+    records.push(mRate);
+    if (pen !== 5) {
+      const fRate = { ...baseMeta(), kind:"rate", pen, sex:"F", value: r.f ?? 0 };
+      fRate.id = fRate.id || (crypto?.randomUUID ? crypto.randomUUID() : ("id_" + Date.now() + "_" + Math.random().toString(16).slice(2)));
+      records.push(fRate);
+    }
   }
+
+  saveRecords();
 
   // Refresh admin UI + any computed tables
   if (typeof loadAdminInputs === "function") loadAdminInputs();
@@ -1042,17 +1242,14 @@ function getSyncRange(){
 
 function startAutoSync(){
   stopAutoSync();
-
-  const { start, end } = getSyncRange();
-  pullSettingsFromCloud();
-  pullEventsFromCloud(start, end);
-
+  if (!supabaseEnabled) return;
+  // run once now
+  scheduleSync("auto");
+  // Adaptive interval: 10s while pending events exist, 60s when caught up
   lastSyncTimer = setInterval(() => {
     if (!navigator.onLine) return;
-    const r = getSyncRange();
-    pullSettingsFromCloud();
-    pullEventsFromCloud(r.start, r.end);
-  }, 60000);
+    scheduleSync("auto");
+  }, 10000);
 }
 // Push current settings to cloud (requires login)
 async function pushSettingsToCloud(){
@@ -1276,7 +1473,14 @@ async function sbSignOut() {
 document.getElementById("gatePassword")?.addEventListener("keydown", (e) => {
   if (e.key === "Enter") sbSignIn();
 });
-  
+  // Cloud sync button
+const btnCloudPull = document.getElementById("btnCloudPull");
+if (btnCloudPull) {
+  btnCloudPull.onclick = async () => {
+    setSyncStatus(`Syncing... ${fmtTime()}`);
+    await pullSettingsFromCloud();
+  };
+}
 // Global user dropdown sign-out
 const btnGlobalSignOut = document.getElementById("btnGlobalSignOut");
 if (btnGlobalSignOut) {
@@ -1359,12 +1563,24 @@ if (btnGlobalSignOut) {
 
   // Records logging wrapper
   function logEvent(evt, label){
+    evt.id = evt.id || (crypto?.randomUUID ? crypto.randomUUID() : ("id_" + Date.now() + "_" + Math.random().toString(16).slice(2)));
     records.push(evt);
     saveRecords();
     lastLoggedEl.textContent = label;
     persistState();
 
-    pushEventToCloud(evt); // <-- add this
+    // Queue + sync should NEVER be allowed to break data entry
+try {
+  enqueueEventForCloud(evt);
+} catch (e) {
+  console.log("enqueueEventForCloud failed:", e?.message || e);
+}
+
+try {
+  if (typeof scheduleSync === "function") scheduleSync("log");
+} catch (e) {
+  console.log("scheduleSync failed:", e?.message || e);
+}
 
     // refresh views
     updateEggPenKpis();
@@ -1376,6 +1592,7 @@ if (btnGlobalSignOut) {
   function undoLast(filterFn, label){
     for (let i=records.length-1;i>=0;i--){
       if (filterFn(records[i])){
+        const removed = records[i];
         records.splice(i,1);
         saveRecords();
         lastLoggedEl.textContent = `Undone (${label})`;
@@ -1383,6 +1600,19 @@ if (btnGlobalSignOut) {
         refreshMortalityPanel();
         renderFeedTable();
         renderSummary();
+
+        // Delete from cloud if it has a stable id
+        if (removed.id && supabaseEnabled && window.supabaseClient && currentSession) {
+          window.supabaseClient
+            .from("house_events")
+            .delete()
+            .eq("event_uuid", removed.id)   // match on event_uuid, not id
+            .then(({ error }) => {
+              if (error) console.log("Cloud delete failed for undo:", error.message);
+            });
+          // Also remove from pending queue in case it hadn't been pushed yet
+          removePendingById(removed.id);
+        }
         return;
       }
     }
@@ -1843,6 +2073,16 @@ if (btnGlobalSignOut) {
 document.getElementById("btnCloudPull").onclick = pullSettingsFromCloud;
 document.getElementById("btnGlobalSignOut").onclick = sbSignOut;
 
+  // Flush aggressively when tab becomes visible or device comes back online
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible" && currentSession) {
+      scheduleSync("focus");
+    }
+  });
+  window.addEventListener("online", () => {
+    if (currentSession) scheduleSync("online");
+  });
+
   // Exports
   function downloadText(filename, content){
     const blob = new Blob([content], {type: "text/csv;charset=utf-8;"});
@@ -1962,10 +2202,6 @@ document.getElementById("btnGlobalSignOut").onclick = sbSignOut;
   if (adminUnlocked) loadAdminInputs();
 
   showTab("tabEggs");
-  if (supabaseEnabled && navigator.onLine) {
-    pullSettingsFromCloud();
-    const supabaseEnabled = true;
-}
 })();
 </script>
 </body>
