@@ -1765,7 +1765,7 @@
       </div>
   <div id="opsBar" style="display:none;"></div>
 
-
+<div style="margin-top:12px;"></div>
   <div class="card cardPop" id="opsHeader" style="margin: 0 16px 0;" style="display:none;">
     <div class="row">
       <div>
@@ -2066,7 +2066,7 @@
     </div>
 
     <!-- BODY: Carousel (3fr) | Totals+Floor+Defects (1fr) | Holes (2fr) -->
-    <div style="display:grid; grid-template-columns:3fr 1fr 2fr; gap:12px; align-items:stretch;">
+    <div style="display:grid; grid-template-columns:3fr 2fr 1fr; gap:12px; align-items:stretch;">
 
       <!-- LEFT 3fr: Horizontal fan carousel -->
             <div style="display:flex; flex-direction:column; gap:10px;">
@@ -2100,7 +2100,11 @@
           </div>
         </div>
       </div>
-
+        <!-- RIGHT 2fr: Nest Hole buttons -->
+      <div class="card" style="padding:12px;">
+        <div style="font-size:16px; font-weight:900; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; margin-bottom:10px; text-align:center;"><span data-i18n="nestHoleLabel">Nest Hole</span></div>
+        <div id="holesL2" style="display:grid; grid-template-columns:1fr 1fr; grid-auto-rows:1fr; gap:8px; height:93%;"></div>
+      </div>
 <!-- MIDDLE 1fr: Totals + Floor Eggs + Defects -->
       <div style="display:flex; flex-direction:column; gap:10px; height:100%;">
 
@@ -2132,12 +2136,6 @@
           
         </div>
 
-      </div>
-
-      <!-- RIGHT 2fr: Nest Hole buttons -->
-      <div class="card" style="padding:12px;">
-        <div style="font-size:16px; font-weight:900; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; margin-bottom:10px; text-align:center;"><span data-i18n="nestHoleLabel">Nest Hole</span></div>
-        <div id="holesL2" style="display:grid; grid-template-columns:1fr 1fr; grid-auto-rows:1fr; gap:8px; height:93%;"></div>
       </div>
 
     </div>
