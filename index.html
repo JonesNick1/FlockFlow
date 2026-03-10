@@ -1545,6 +1545,12 @@
 
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="manifest" href="app.webmanifest">
+  <meta name="theme-color" content="#111827">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="FlockFlow">
+  <link rel="apple-touch-icon" href="icon-192.png">
 </head>
 
 <body>
@@ -1734,6 +1740,11 @@
     <button class="sideNavItem" id="toggleTheme" title="Toggle theme">
       <span class="sideNavIcon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></span>
       <span class="sideNavLabel">Dark Mode</span>
+    </button>
+
+    <button class="sideNavItem" id="installAppBtn" title="Install FlockFlow" style="display:none;">
+      <span class="sideNavIcon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg></span>
+      <span class="sideNavLabel">Install App</span>
     </button>
   </div>
 </nav>
@@ -8018,6 +8029,41 @@ showTab("brandHome");
 
   })();
 
+})();
+</script>
+<script>
+(function(){
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function(){
+      navigator.serviceWorker.register('./sw.js').catch(function(err){
+        console.log('Service worker registration failed:', err);
+      });
+    });
+  }
+
+  var deferredPrompt = null;
+  var installBtn = document.getElementById('installAppBtn');
+
+  window.addEventListener('beforeinstallprompt', function(e){
+    e.preventDefault();
+    deferredPrompt = e;
+    if (installBtn) installBtn.style.display = 'flex';
+  });
+
+  if (installBtn) {
+    installBtn.addEventListener('click', async function(){
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      try { await deferredPrompt.userChoice; } catch (err) {}
+      deferredPrompt = null;
+      installBtn.style.display = 'none';
+    });
+  }
+
+  window.addEventListener('appinstalled', function(){
+    deferredPrompt = null;
+    if (installBtn) installBtn.style.display = 'none';
+  });
 })();
 </script>
 </body>
