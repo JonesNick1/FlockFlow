@@ -1542,7 +1542,99 @@
 
   /* Pen snapshot cards */
   #dashPenCards .dashCard > div:first-child > div:last-child { font-size: 34px !important; }
+/* =========================
+   MOBILE / NARROW SCREEN
+   ========================= */
 
+@media (max-width: 900px){
+
+  /* Sidebar */
+  .sidebar{
+    position:fixed;
+    left:0;
+    top:0;
+    bottom:0;
+    width:240px;
+    overflow-y:auto;
+    z-index:1000;
+  }
+
+  .sidebar.collapsed{
+    transform:translateX(-220px);
+  }
+
+  /* Main layout */
+  .main{
+    margin-left:0 !important;
+    padding:14px;
+  }
+
+  /* Hero banner */
+  .hero{
+    height:auto;
+    padding:20px;
+  }
+
+  .hero h1{
+    font-size:22px;
+  }
+
+  .hero p{
+    font-size:14px;
+  }
+
+  /* Dashboard cards stack */
+  .dashboardGrid{
+    display:flex;
+    flex-direction:column;
+    gap:16px;
+  }
+
+  /* Snapshot cards */
+  .snapshotRow{
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+  }
+
+  .snapshotCard{
+    width:100%;
+  }
+
+  /* Tables / cards */
+  .card{
+    width:100%;
+    padding:16px;
+  }
+
+  /* Feed card */
+  .feedCard{
+    width:100%;
+  }
+
+  /* Buttons bigger for touch */
+  button{
+    min-height:42px;
+  }
+
+}
+
+/* Extra narrow phones */
+@media (max-width:600px){
+
+  .hero{
+    border-radius:16px;
+  }
+
+  .hero h1{
+    font-size:20px;
+  }
+
+  .card{
+    padding:14px;
+  }
+
+}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link rel="manifest" href="app.webmanifest">
