@@ -1543,6 +1543,105 @@
   /* Pen snapshot cards */
   #dashPenCards .dashCard > div:first-child > div:last-child { font-size: 34px !important; }
 
+
+
+/* ===== Tutorial overlay ===== */
+#tutorialScreen{
+  position: fixed;
+  inset: 0;
+  background: rgba(10,10,12,.46);
+  z-index: 100180;
+  display: none;
+}
+[data-theme="dark"] #tutorialScreen{
+  background: rgba(0,0,0,.60);
+}
+#tutorialScreen.show{ display:block; }
+.tutorialTarget{
+  position: relative;
+  z-index: 100201 !important;
+  border-radius: 14px !important;
+  box-shadow: 0 0 0 4px rgba(217,45,32,.45), 0 10px 30px rgba(0,0,0,.16) !important;
+  transition: box-shadow .12s ease, transform .12s ease;
+}
+[data-theme="dark"] .tutorialTarget{
+  box-shadow: 0 0 0 4px rgba(255,120,120,.62), 0 10px 30px rgba(0,0,0,.28) !important;
+}
+#tutorialCard{
+  position: fixed;
+  left: 18px;
+  top: 18px;
+  bottom: auto;
+  transform: none;
+  width: min(560px, calc(100vw - 24px));
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.28);
+  padding: 16px;
+  z-index: 100250;
+  display: none;
+}
+#tutorialCard.show{ display:block; }
+.tutorialTop{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:8px;
+}
+.tutorialStepPill{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:6px 10px;
+  border-radius:999px;
+  background: var(--softAccent);
+  border:1px solid var(--softAccentBorder);
+  color: var(--accent);
+  font-size:12px;
+  font-weight:900;
+  letter-spacing:.04em;
+  text-transform:uppercase;
+}
+.tutorialClose{
+  border:none;
+  background:transparent;
+  color:var(--muted);
+  font-size:22px;
+  line-height:1;
+  cursor:pointer;
+}
+.tutorialTitle{
+  font-size:20px;
+  font-weight:900;
+  margin:0 0 8px;
+}
+.tutorialBody{
+  color: var(--muted);
+  font-size:14px;
+  line-height:1.45;
+}
+.tutorialActions{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-top:14px;
+  flex-wrap:wrap;
+}
+.tutorialActions .left,
+.tutorialActions .right{
+  display:flex;
+  gap:8px;
+  align-items:center;
+  flex-wrap:wrap;
+}
+#btnTutorialReplay{
+  margin-top:4px;
+}
+
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -1734,6 +1833,11 @@
     <button class="sideNavItem" id="toggleTheme" title="Toggle theme">
       <span class="sideNavIcon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></span>
       <span class="sideNavLabel">Dark Mode</span>
+    </button>
+
+    <button class="sideNavItem" id="btnTutorialReplay" title="Replay tutorial">
+      <span class="sideNavIcon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 2"/></svg></span>
+      <span class="sideNavLabel">Tutorial</span>
     </button>
   </div>
 </nav>
@@ -2707,7 +2811,45 @@
           </div>
         </div>
 
-        <!-- ROW 4 LEFT: Change PIN -->
+        <!-- ROW 4 LEFT: Adjustments -->
+        <div class="card">
+          <h4 class="sectionTitle">Adjustments</h4>
+          <div class="muted" style="font-size:12px; margin-bottom:8px;">Use this to correct past entries without letting totals go below zero.</div>
+          <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:10px;">
+            <div><label style="font-size:11px; color:var(--muted);">Date</label><input id="adjDate" type="date" style="width:100%;"></div>
+            <div><label style="font-size:11px; color:var(--muted);">Pen</label>
+              <select id="adjPen" style="width:100%;">
+                <option value="1">Pen 1</option>
+                <option value="2">Pen 2</option>
+                <option value="3">Pen 3</option>
+                <option value="4">Pen 4</option>
+                <option value="5">Spares</option>
+              </select>
+            </div>
+            <div style="grid-column:1 / -1;"><label style="font-size:11px; color:var(--muted);">Adjustment Type</label>
+              <select id="adjType" style="width:100%;">
+                <option value="egg_nest">Nest Eggs</option>
+                <option value="egg_floor">Floor Eggs</option>
+                <option value="egg_defect|Dirty">Dirty Defects</option>
+                <option value="egg_defect|Cracked">Cracked Defects</option>
+                <option value="egg_defect|Double">Double Defects</option>
+                <option value="egg_defect|Cull">Cull Defects</option>
+                <option value="mort|dead|M">Dead Males</option>
+                <option value="mort|dead|F">Dead Females</option>
+                <option value="mort|cull|M">Cull Males</option>
+                <option value="mort|cull|F">Cull Females</option>
+              </select>
+            </div>
+            <div><label style="font-size:11px; color:var(--muted);">Amount</label><input id="adjAmount" type="number" step="1" placeholder="Use negative to subtract" style="width:100%;"></div>
+            <div><label style="font-size:11px; color:var(--muted);">Note</label><input id="adjNote" type="text" maxlength="80" placeholder="Optional reason" style="width:100%;"></div>
+          </div>
+          <div id="adjAvailable" class="muted" style="margin-top:10px; font-size:12px;">Available to subtract: 0</div>
+          <div class="row" style="margin-top:10px;">
+            <button class="btn btnWide" id="applyAdjustment">Apply Adjustment</button>
+          </div>
+        </div>
+
+        <!-- ROW 4 RIGHT: Change PIN -->
         <div class="card">
           <h4 class="sectionTitle" data-i18n="admin.pinTitle">Change Admin PIN</h4>
           <div class="muted" style="font-size:12px;" data-i18n="admin.pinHint">Default PIN is 1234.</div>
@@ -2717,7 +2859,7 @@
           </div>
         </div>
 
-        <!-- ROW 4 RIGHT: Danger Zone -->
+        <!-- ROW 5 RIGHT: Danger Zone -->
         <div class="card">
           <h4 class="sectionTitle" data-i18n="admin.dangerTitle">Danger Zone</h4>
           <div class="row" style="margin-top:10px;">
@@ -2730,6 +2872,26 @@
 </div>
 </div><!-- /appMain -->
 </div><!-- /appWrap -->
+
+
+<div id="tutorialCard" aria-live="polite">
+  <div class="tutorialTop">
+    <div class="tutorialStepPill"><span id="tutorialStepCount">Step 1 of 12</span></div>
+    <button class="tutorialClose" id="tutorialClose" aria-label="Close tutorial">×</button>
+  </div>
+  <div class="tutorialTitle" id="tutorialTitle">Welcome to FlockFlow</div>
+  <div class="tutorialBody" id="tutorialBody">This quick walkthrough shows the main screens and how to log your daily flock data.</div>
+  <div class="tutorialActions">
+    <div class="left">
+      <button class="btn btnSmall" id="tutorialBack">Back</button>
+      <button class="btn btnSmall" id="tutorialSkip">Skip</button>
+    </div>
+    <div class="right">
+      <button class="btn btnSmall" id="tutorialNext">Next</button>
+    </div>
+  </div>
+</div>
+
 
 <div id="syncFooter" style="
   position:fixed; left:0; right:0; bottom:0;
@@ -2793,6 +2955,9 @@ window.supabaseClient = window.supabase.createClient(
       // run a sync shortly after auth is ready
       scheduleSync("login");
       startAutoSync();
+      if (typeof window.maybeAutoStartFlockFlowTutorial === "function") {
+        requestAnimationFrame(()=> window.maybeAutoStartFlockFlowTutorial());
+      }
     } else {
       stopAutoSync();
     }
@@ -2901,6 +3066,9 @@ async function bootAuthAndAutoSync(){
       // Schedule a sync — don't call getSyncRange/pullEventsForRange here
       // because dateEl and todayStr may not be initialized yet (IIFE runs after this)
       scheduleSync("boot");
+      if (typeof window.maybeAutoStartFlockFlowTutorial === "function") {
+        requestAnimationFrame(()=> window.maybeAutoStartFlockFlowTutorial());
+      }
     } else {
       stopAutoSync();
     }
@@ -3693,8 +3861,8 @@ async function sbSignOut() {
   const activeBoxEl = $("activeBox");
   const lastLoggedEl = $("lastLogged");
 
-  dateEl.value = state.date || todayStr;
-  let autoFollowToday = (dateEl.value === todayStr);
+  dateEl.value = (state.date && state.date === todayStr) ? state.date : todayStr;
+  let autoFollowToday = true;
 
   caretakerEl.value = state.caretaker || "";
 
@@ -3835,13 +4003,13 @@ async function sbSignOut() {
 
         let cardsHtml = "";
         for (let pen=1; pen<=4; pen++){
-          const pNest  = sumCount(dayRecs.filter(r=>r.kind==="egg_nest"  && r.pen===pen));
-          const pFloor = sumCount(dayRecs.filter(r=>r.kind==="egg_floor" && r.pen===pen));
-          const pTotal = pNest + pFloor;
-          const pDef   = sumCount(dayRecs.filter(r=>r.kind==="egg_defect" && r.pen===pen));
-          const pMortM = sumCount(dayRecs.filter(r=>r.kind==="mort" && r.pen===pen && r.sex==="M"));
-          const pMortF = sumCount(dayRecs.filter(r=>r.kind==="mort" && r.pen===pen && r.sex==="F"));
-          const pMort  = pMortM + pMortF;
+          const pNest  = nonNeg(sumCount(dayRecs.filter(r=>r.kind==="egg_nest"  && r.pen===pen)));
+          const pFloor = nonNeg(sumCount(dayRecs.filter(r=>r.kind==="egg_floor" && r.pen===pen)));
+          const pTotal = nonNeg(pNest + pFloor);
+          const pDef   = nonNeg(sumCount(dayRecs.filter(r=>r.kind==="egg_defect" && r.pen===pen)));
+          const pMortM = nonNeg(sumCount(dayRecs.filter(r=>r.kind==="mort" && r.pen===pen && r.sex==="M")));
+          const pMortF = nonNeg(sumCount(dayRecs.filter(r=>r.kind==="mort" && r.pen===pen && r.sex==="F")));
+          const pMort  = nonNeg(pMortM + pMortF);
 
           // Inventory
           const placed = getPlacedTotal(pen);
@@ -3849,12 +4017,12 @@ async function sbSignOut() {
           const aliveM = Math.max(0, placed.m - (cm.m||0));
           const aliveF = Math.max(0, placed.f - (cm.f||0));
           const todayHDraw = aliveF > 0 ? (pTotal/aliveF*100) : null;
-          const hdPct = todayHDraw !== null ? todayHDraw.toFixed(1)+"%" : "—";
+          const hdPct = todayHDraw !== null ? clampNum(todayHDraw, 0, 100).toFixed(1)+"%" : "—";
 
           // ACM (all-cause mortality %) — tap to toggle ♂ Male / ♀ Female
           const _acmSex = (window._acmSex === "F") ? "F" : "M";
-          const acmM   = (placed.m||0) > 0 ? clamp((nonNegative(cm.m||0)/placed.m*100),0,100).toFixed(2)+"%" : "—";
-          const acmF   = (placed.f||0) > 0 ? clamp((nonNegative(cm.f||0)/placed.f*100),0,100).toFixed(2)+"%" : "—";
+          const acmM   = (placed.m||0) > 0 ? clampNum(((cm.m||0)/placed.m*100), 0, 100).toFixed(2)+"%" : "—";
+          const acmF   = (placed.f||0) > 0 ? clampNum(((cm.f||0)/placed.f*100), 0, 100).toFixed(2)+"%" : "—";
           const acmPct   = _acmSex === "F" ? acmF : acmM;
           const acmLabel = _acmSex === "F" ? "ACM% ♀ Female" : "ACM% ♂ Male";
 
@@ -3864,7 +4032,7 @@ async function sbSignOut() {
 
           // Daily mortality % alert (>1.5% of today's alive flock in one day)
           const totalAlive = aliveM + aliveF;
-          const dailyMortPct = totalAlive > 0 ? (pMort / totalAlive * 100) : 0;
+          const dailyMortPct = totalAlive > 0 ? clampNum((pMort / totalAlive * 100), 0, 100) : 0;
           const mortAlertBanner = dailyMortPct >= 1.5
             ? `<div style="margin-top:8px; font-size:13px; font-weight:800; color:#7f1d1d; background:rgba(127,29,29,.09); border:1px solid rgba(127,29,29,.30); border-radius:8px; padding:7px 10px;">&#9888;&#65039; High mortality: ${dailyMortPct.toFixed(2)}% of flock today (${pMort} birds)</div>`
             : "";
@@ -4352,21 +4520,6 @@ async function sbSignOut() {
     return (Math.round(x*100)/100) + "%";
   }
 
-  function clamp(n, min, max){
-    const v = Number(n);
-    if (!Number.isFinite(v)) return min;
-    return Math.min(max, Math.max(min, v));
-  }
-
-  function nonNegative(n){
-    const v = Number(n);
-    return Number.isFinite(v) ? Math.max(0, v) : 0;
-  }
-
-  function normalizeSeriesNonNegative(arr){
-    return (arr || []).map(v => nonNegative(v));
-  }
-
   function getLastSetting(kind, pen, sex){
     for (let i = (records||[]).length - 1; i >= 0; i--){
       const r = records[i];
@@ -4397,9 +4550,9 @@ async function sbSignOut() {
       if (!running[p]) running[p] = {m:0,f:0,total:0};
       const c = Number(e.count ?? 1); // use ?? not || so -1 is preserved
       const sex = (e.sex || "").toUpperCase();
-      if (sex==="M") running[p].m = nonNegative(running[p].m + c);
-      else if (sex==="F") running[p].f = nonNegative(running[p].f + c);
-      running[p].total = nonNegative(running[p].m + running[p].f);
+      if (sex==="M") running[p].m += c;
+      else if (sex==="F") running[p].f += c;
+      running[p].total += c;
       // snapshot for this date
       if (!out[d]) out[d] = {};
       out[d][p] = {...running[p]};
@@ -4420,22 +4573,28 @@ async function sbSignOut() {
   }
 
   function eggsPct(totalEggs, aliveFemales){
-    const eggs = nonNegative(totalEggs);
     if (aliveFemales <= 0) return 0;
-    return clamp((eggs / aliveFemales) * 100, 0, 100);
+    return clampNum((Math.max(0, totalEggs) / aliveFemales) * 100, 0, 100);
   }
 
   function mortPct(deaths, placedTotal){
-    const d = nonNegative(deaths);
     if (placedTotal <= 0) return 0;
-    return clamp((d / placedTotal) * 100, 0, 100);
+    return clampNum((Math.max(0, deaths) / placedTotal) * 100, 0, 100);
+  }
+
+  function clampNum(n, min, max){
+    n = Number(n);
+    if (!Number.isFinite(n)) n = 0;
+    return Math.min(max, Math.max(min, n));
+  }
+
+  function nonNeg(n){
+    return clampNum(n, 0, Number.MAX_SAFE_INTEGER);
   }
 
   function defectsPct(defects, totalEggs){
-    const d = nonNegative(defects);
-    const total = nonNegative(totalEggs);
-    if (total <= 0) return 0;
-    return clamp((d / total) * 100, 0, 100);
+    if (totalEggs <= 0) return 0;
+    return clampNum((Math.max(0, defects) / Math.max(0, totalEggs)) * 100, 0, 100);
   }
 
   function ensureToggles(){
@@ -5022,7 +5181,7 @@ async function sbSignOut() {
           if (Number(e.pen) !== p) return;
           data[idx] += Number(e.count)||1;
         });
-        series.push({name:`Pen ${p} Floor`, data: normalizeSeriesNonNegative(data)});
+        series.push({name:`Pen ${p} Floor`, data});
       }
       return {axis, series};
     }
@@ -5057,10 +5216,7 @@ async function sbSignOut() {
 
     const series = [];
     for (const p of penFilter){
-      eggsByPenKey[p] = normalizeSeriesNonNegative(eggsByPenKey[p]);
-      defectsByPenKey[p] = normalizeSeriesNonNegative(defectsByPenKey[p]);
-      floorByPenKey[p] = normalizeSeriesNonNegative(floorByPenKey[p]);
-      series.push({name: `Pen ${p} Eggs`, data: eggsByPenKey[p].slice()});
+      series.push({name: `Pen ${p} Eggs`, data: eggsByPenKey[p].map(v => nonNeg(v))});
     }
     return {axis, series, eggsByPenKey, defectsByPenKey, floorByPenKey};
   }
@@ -5178,7 +5334,7 @@ async function sbSignOut() {
 
     const series = [];
     for (const p of penFilter){
-      const data = axis.map((k,i)=> defectsPct(defects[p][i], totalEggs[p][i]));
+      const data = axis.map((k,i)=> defectsPct(nonNeg(defects[p][i]), nonNeg(totalEggs[p][i])));
       series.push({name:`Pen ${p} Defects%`, data});
     }
     return {axis, series};
@@ -5210,7 +5366,7 @@ async function sbSignOut() {
 
     const series = [];
     for (const p of penFilter){
-      const data = axis.map((k,i)=> defectsPct(floor[p][i], totalEggs[p][i]));
+      const data = axis.map((k,i)=> defectsPct(nonNeg(floor[p][i]), nonNeg(totalEggs[p][i])));
       series.push({name:`Pen ${p} Floor%`, data});
     }
     return {axis, series};
@@ -5332,7 +5488,7 @@ async function sbSignOut() {
                 const ds = axis[i];
                 const cm = getCumMortOnOrBefore(ds, penNum, cum);
                 const aliveF = Math.max(0, (placed.f||0) - (cm.f||0));
-                return aliveF > 0 ? (Math.round(((Number(v||0) / aliveF) * 100) * 10) / 10) : 0;
+                return aliveF > 0 ? clampNum((Math.round(((Math.max(0, Number(v||0)) / aliveF) * 100) * 10) / 10), 0, 100) : 0;
               })
             };
           });
@@ -6626,87 +6782,6 @@ if (btnAdminLock) {
     startAutoSync();
   }
 
-  function getAdjustmentNetAvailable(dateStr, kind, pen, sex = "", defectType = ""){
-    let total = 0;
-    for (const r of (records || [])){
-      if (!r || r.date !== dateStr) continue;
-      if (r.kind !== kind) continue;
-      if (Number(r.pen || 0) !== Number(pen || 0)) continue;
-      if (kind === "mort" && String((r.sex || "").toUpperCase()) !== String((sex || "").toUpperCase())) continue;
-      if (kind === "egg_defect" && String(r.defectType || "") !== String(defectType || "")) continue;
-      total += Number(r.count ?? 1);
-    }
-    return nonNegative(total);
-  }
-
-  function updateAdjustmentUi(){
-    const kind = $("adjKind")?.value || "mort";
-    const pen = Number($("adjPen")?.value || 1);
-    const dateStr = $("adjDate")?.value || (dateEl?.value || todayStr);
-    const sexWrap = $("adjSexWrap");
-    const defectWrap = $("adjDefectWrap");
-    if (sexWrap) sexWrap.style.display = kind === "mort" ? "block" : "none";
-    if (defectWrap) defectWrap.style.display = kind === "egg_defect" ? "block" : "none";
-
-    let available = 0;
-    if (kind === "mort") available = getAdjustmentNetAvailable(dateStr, kind, pen, $("adjSex")?.value || "M", "");
-    else if (kind === "egg_defect") available = getAdjustmentNetAvailable(dateStr, kind, pen, "", $("adjDefectType")?.value || "Dirty");
-    else available = getAdjustmentNetAvailable(dateStr, kind, pen, "", "");
-
-    const hint = $("adjAvailableHint");
-    if (hint) hint.textContent = `Available to subtract: ${available}`;
-  }
-
-  const _adjFields = ["adjDate","adjPen","adjKind","adjSex","adjDefectType"];
-  _adjFields.forEach(id => { const el = $(id); if (el) el.addEventListener("change", updateAdjustmentUi); });
-
-  const btnSaveAdjustment = $("saveAdjustment");
-  if (btnSaveAdjustment){
-    btnSaveAdjustment.onclick = ()=>{
-      if (!adminUnlocked) { alert("Unlock Admin first."); return; }
-      const dateStr = $("adjDate")?.value || (dateEl?.value || todayStr);
-      const kind = $("adjKind")?.value || "mort";
-      const pen = Number($("adjPen")?.value || 1);
-      let count = parseInt($("adjCount")?.value || "0", 10);
-      if (!Number.isFinite(count) || count === 0) { alert("Enter a whole-number adjustment amount."); return; }
-
-      const sex = kind === "mort" ? (($("adjSex")?.value || "M").toUpperCase()) : undefined;
-      const defectType = kind === "egg_defect" ? ($("adjDefectType")?.value || "Dirty") : undefined;
-      const available = kind === "mort"
-        ? getAdjustmentNetAvailable(dateStr, kind, pen, sex, "")
-        : kind === "egg_defect"
-          ? getAdjustmentNetAvailable(dateStr, kind, pen, "", defectType)
-          : getAdjustmentNetAvailable(dateStr, kind, pen, "", "");
-
-      if (count < 0 && Math.abs(count) > available) count = -available;
-      if (count < 0 && available <= 0){
-        alert("Nothing available to subtract for that selection.");
-        updateAdjustmentUi();
-        return;
-      }
-
-      const m = baseMeta();
-      const evt = {
-        ...m,
-        date: dateStr,
-        kind,
-        pen,
-        count,
-        action: "admin_adjustment"
-      };
-      if (kind === "mort") evt.sex = sex;
-      if (kind === "egg_defect") evt.defectType = defectType;
-
-      logEvent(evt, `Adjustment ${kind} ${count > 0 ? "+" : ""}${count}`);
-      const saved = $("adjustmentSaved");
-      if (saved){ saved.style.display = "block"; setTimeout(()=> saved.style.display = "none", 2500); }
-      $("adjCount") && ($("adjCount").value = "1");
-      updateAdjustmentUi();
-    };
-  }
-
-  updateAdjustmentUi();
-
   $("clearAll").onclick = async ()=>{
     if (!adminUnlocked) { alert("Unlock Admin first."); return; }
 
@@ -6782,6 +6857,101 @@ if (btnAdminLock) {
 ${resetEvts.length} correction event(s) written.
 Events sync is now OFF.`);
   };
+
+
+  function parseAdjustmentType(val){
+    const parts = String(val || "egg_nest").split("|");
+    if (parts[0] === "mort"){
+      return { kind:"mort", action:(parts[1] || "dead"), sex:(parts[2] || "M"), defectType:"" };
+    }
+    if (parts[0] === "egg_defect"){
+      return { kind:"egg_defect", action:"", sex:"", defectType:(parts[1] || "Dirty") };
+    }
+    return { kind:(parts[0] || "egg_nest"), action:"", sex:"", defectType:"" };
+  }
+
+  function adjustmentAvailable(dateStr, pen, typeVal){
+    const meta = parseAdjustmentType(typeVal);
+    let total = 0;
+    const dayRecs = (records || []).filter(r => r && r.date === dateStr && Number(r.pen) === Number(pen));
+    for (const r of dayRecs){
+      const c = Number(r.count ?? 1);
+      if (meta.kind === "mort"){
+        if (r.kind !== "mort") continue;
+        if ((r.sex || "") !== meta.sex) continue;
+        const act = (r.action || "").replace(/_undo$/,'');
+        if (act !== meta.action && r.action !== "admin_reset") continue;
+        total += c;
+      } else if (meta.kind === "egg_defect"){
+        if (r.kind !== "egg_defect") continue;
+        if ((r.defectType || "") !== meta.defectType) continue;
+        total += c;
+      } else {
+        if (r.kind !== meta.kind) continue;
+        total += c;
+      }
+    }
+    return Math.max(0, Math.round(total));
+  }
+
+  function refreshAdjustmentUi(){
+    const dateStr = $("adjDate")?.value || (dateEl?.value || todayStr);
+    const pen = Number($("adjPen")?.value || 1);
+    const typeVal = $("adjType")?.value || "egg_nest";
+    const available = adjustmentAvailable(dateStr, pen, typeVal);
+    const info = $("adjAvailable");
+    if (info) info.textContent = `Available to subtract: ${available}`;
+
+    const isSpares = pen === 5;
+    const typeSel = $("adjType");
+    if (typeSel){
+      [...typeSel.options].forEach(opt => {
+        const isEgg = String(opt.value).startsWith("egg_");
+        opt.disabled = isSpares && isEgg;
+      });
+      if (typeSel.selectedOptions[0]?.disabled){
+        typeSel.value = "mort|dead|M";
+      }
+    }
+  }
+
+  if ($("adjDate") && !$("adjDate").value) $("adjDate").value = dateEl?.value || todayStr;
+  ["adjDate","adjPen","adjType"].forEach(id => { const el=$(id); if (el) el.onchange = refreshAdjustmentUi; });
+  refreshAdjustmentUi();
+
+  $("applyAdjustment") && ($("applyAdjustment").onclick = ()=>{
+    if (!adminUnlocked) { alert("Unlock Admin first."); return; }
+    const dateStr = $("adjDate")?.value || (dateEl?.value || todayStr);
+    const pen = Number($("adjPen")?.value || 1);
+    const typeVal = $("adjType")?.value || "egg_nest";
+    let amount = Math.trunc(Number($("adjAmount")?.value || 0));
+    if (!amount) { alert("Enter an adjustment amount."); return; }
+
+    const available = adjustmentAvailable(dateStr, pen, typeVal);
+    if (amount < 0) amount = -Math.min(Math.abs(amount), available);
+    if (amount === 0) { alert("Nothing available to subtract for that selection."); return; }
+
+    const meta = parseAdjustmentType(typeVal);
+    const note = $("adjNote")?.value?.trim() || "";
+    const evt = {
+      ...baseMeta(),
+      date: dateStr,
+      pen,
+      kind: meta.kind,
+      count: amount,
+      action: meta.action,
+      sex: meta.sex,
+      defectType: meta.defectType,
+      round: meta.kind.startsWith("egg_") ? 0 : null,
+      note,
+    };
+
+    logEvent(evt, `Adjustment ${amount > 0 ? '+' : ''}${amount} ${typeVal} Pen ${pen}`);
+    if ($("adjAmount")) $("adjAmount").value = "";
+    if ($("adjNote")) $("adjNote").value = "";
+    refreshAdjustmentUi();
+    alert(`Adjustment saved: ${amount > 0 ? '+' : ''}${amount}`);
+  });
 
   $("savePin").onclick = ()=>{
     if (!adminUnlocked) { alert("Unlock Admin first."); return; }
@@ -8120,6 +8290,267 @@ showTab("brandHome");
       }
 
   })();
+
+
+  // ═══════════════════════════════════════
+  // Guided tutorial (12-step walkthrough)
+  // ═══════════════════════════════════════
+  (function(){
+    const TUTORIAL_SEEN_KEY = "ff_tutorial_seen_v1";
+    const tutorialCard = document.getElementById("tutorialCard");
+    const tutorialScreen = document.getElementById("tutorialScreen");
+    const tutorialTitle = document.getElementById("tutorialTitle");
+    const tutorialBody = document.getElementById("tutorialBody");
+    const tutorialStepCount = document.getElementById("tutorialStepCount");
+    const btnTutorialReplay = document.getElementById("btnTutorialReplay");
+    const btnTutorialClose = document.getElementById("tutorialClose");
+    const btnTutorialBack = document.getElementById("tutorialBack");
+    const btnTutorialSkip = document.getElementById("tutorialSkip");
+    const btnTutorialNext = document.getElementById("tutorialNext");
+    let tutorialIndex = 0;
+    let tutorialRunning = false;
+    let tutorialTarget = null;
+    let tutorialAutoStarted = false;
+
+    function isMobileTutorial(){ return window.innerWidth <= 768; }
+    function wait(ms){ return new Promise(res => setTimeout(res, ms)); }
+    function isVisible(el){
+      if (!el) return false;
+      const st = getComputedStyle(el);
+      if (st.display === 'none' || st.visibility === 'hidden' || Number(st.opacity) === 0) return false;
+      if (el.closest('#viewEggs') && getComputedStyle(document.getElementById('viewEggs')).display === 'none') return false;
+      if (el.closest('#viewEggsL2') && getComputedStyle(document.getElementById('viewEggsL2')).display === 'none') return false;
+      return !!(el.getClientRects().length || el.offsetWidth || el.offsetHeight);
+    }
+    function getVisibleMatch(selector){
+      const all = Array.from(document.querySelectorAll(selector));
+      return all.find(isVisible) || all[0] || null;
+    }
+    function setCollapsedTutorial(v){
+      try {
+        localStorage.setItem('ff_sideCollapsed', JSON.stringify(!!v));
+        const sidebar = document.getElementById('appSidebar');
+        if (sidebar) sidebar.classList.toggle('collapsed', !!v && !isMobileTutorial());
+        document.body.classList.toggle('sidebar-collapsed', !!v && !isMobileTutorial());
+        const colBtn = document.getElementById('sideCollapseBtn');
+        if (colBtn && !isMobileTutorial()) colBtn.textContent = v ? '›' : '‹';
+      } catch(e){}
+    }
+    function openSidebarTutorial(){
+      const sidebar = document.getElementById('appSidebar');
+      const overlay = document.getElementById('sideOverlay');
+      if (isMobileTutorial()) {
+        sidebar?.classList.add('mobile-open');
+        overlay?.classList.add('visible');
+      } else {
+        setCollapsedTutorial(false);
+      }
+    }
+    function closeSidebarTutorial(){
+      if (!isMobileTutorial()) return;
+      const sidebar = document.getElementById('appSidebar');
+      const overlay = document.getElementById('sideOverlay');
+      sidebar?.classList.remove('mobile-open');
+      overlay?.classList.remove('visible');
+    }
+    function expandOpsTutorial(){
+      const sub = document.getElementById('sideSubOps');
+      if (sub) sub.classList.remove('hidden');
+      try { localStorage.setItem('ff_opsExpanded', 'true'); } catch(e){}
+    }
+    function removeTutorialHighlight(){
+      if (tutorialTarget) tutorialTarget.classList.remove('tutorialTarget');
+      tutorialTarget = null;
+    }
+    function markTutorialSeen(){
+      try { localStorage.setItem(TUTORIAL_SEEN_KEY, 'true'); } catch(e){}
+    }
+    function positionTutorialCard(target){
+      if (!tutorialCard) return;
+      tutorialCard.style.left = '18px';
+      tutorialCard.style.top = '18px';
+      tutorialCard.style.bottom = 'auto';
+      tutorialCard.style.transform = 'none';
+      if (!target || !isVisible(target)) return;
+
+      const r = target.getBoundingClientRect();
+      const pad = 16;
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const cardRect = tutorialCard.getBoundingClientRect();
+      const spaceRight = vw - r.right - pad;
+      const spaceLeft = r.left - pad;
+      const spaceBelow = vh - r.bottom - pad;
+      const spaceAbove = r.top - pad;
+      let left = pad;
+      let top = pad;
+
+      if (spaceRight >= cardRect.width + 12) {
+        left = Math.min(vw - cardRect.width - pad, r.right + 14);
+        top = Math.max(pad, Math.min(vh - cardRect.height - pad, r.top + (r.height - cardRect.height) / 2));
+      } else if (spaceLeft >= cardRect.width + 12) {
+        left = Math.max(pad, r.left - cardRect.width - 14);
+        top = Math.max(pad, Math.min(vh - cardRect.height - pad, r.top + (r.height - cardRect.height) / 2));
+      } else if (spaceBelow >= cardRect.height + 12) {
+        left = Math.max(pad, Math.min(vw - cardRect.width - pad, r.left + (r.width - cardRect.width) / 2));
+        top = Math.min(vh - cardRect.height - pad, r.bottom + 14);
+      } else {
+        left = Math.max(pad, Math.min(vw - cardRect.width - pad, r.left + (r.width - cardRect.width) / 2));
+        top = Math.max(pad, r.top - cardRect.height - 14);
+      }
+      tutorialCard.style.left = `${Math.round(left)}px`;
+      tutorialCard.style.top = `${Math.round(top)}px`;
+    }
+
+    const tutorialSteps = [
+      {
+        title: 'Dashboard home',
+        text: 'This is your main home screen. It gives you the fast read on production, mortality, inventory, and feed for the day.',
+        selector: '#sideItemDash',
+        before: async()=>{ openSidebarTutorial(); if (typeof showTab === 'function') showTab('brandHome'); await wait(20); }
+      },
+      {
+        title: 'Data Entry section',
+        text: 'Open Data Entry to get to Eggs, Mortality, Weights, and Logs. This is where most daily work happens.',
+        selector: '#sideItemOps',
+        before: async()=>{ openSidebarTutorial(); expandOpsTutorial(); await wait(10); }
+      },
+      {
+        title: 'Eggs tab',
+        text: 'Start here during egg collection. This screen lets you pick a nest box, tap the hole, log floor eggs, and record defects.',
+        selector: '#opsEggs',
+        before: async()=>{ openSidebarTutorial(); expandOpsTutorial(); if (typeof showTab === 'function') showTab('tabEggs'); await wait(20); }
+      },
+      {
+        title: 'Choose the active nest box',
+        text: 'First select the box you are standing at. The selected box becomes the active box for nest-hole logging.',
+        selector: '#viewEggs:not([style*="display:none"]) .boxBtn, #viewEggsL2:not([style*="display:none"]) #boxCarouselStage .boxBtn.selected, #viewEggsL2:not([style*="display:none"]) #boxCarouselStage .boxBtn',
+        before: async()=>{ closeSidebarTutorial(); if (typeof showTab === 'function') showTab('tabEggs'); await wait(20); }
+      },
+      {
+        title: 'Tap the nest hole',
+        text: 'After the box is selected, tap the correct hole number to log a nest egg. This is the main action for egg rounds.',
+        selector: '#viewEggs:not([style*="display:none"]) #holes button, #viewEggsL2:not([style*="display:none"]) #holesL2 button',
+        before: async()=>{ closeSidebarTutorial(); if (typeof showTab === 'function') showTab('tabEggs'); await wait(20); }
+      },
+      {
+        title: 'Move to the next round',
+        text: 'Use Next Round when you start a new collection pass. Undo removes your most recent nest entry if you tap the wrong thing.',
+        selector: '#viewEggs:not([style*="display:none"]) #nextRound, #viewEggsL2:not([style*="display:none"]) #nextRoundL2',
+        before: async()=>{ closeSidebarTutorial(); if (typeof showTab === 'function') showTab('tabEggs'); await wait(20); }
+      },
+      {
+        title: 'Floor eggs',
+        text: 'Pick the pen first, then tap +1 Floor to log floor eggs. Use Undo if you need to reverse the last floor-egg entry.',
+        selector: '#viewEggs:not([style*="display:none"]) #floorPlus, #viewEggsL2:not([style*="display:none"]) #floorPlusL2',
+        before: async()=>{ closeSidebarTutorial(); if (typeof showTab === 'function') showTab('tabEggs'); await wait(20); }
+      },
+      {
+        title: 'Egg defects',
+        text: 'Log Dirty, Cracked, Double, or Cull eggs here. Undo Defect reverses the most recent defect entry.',
+        selector: '#viewEggs:not([style*="display:none"]) #defDirty, #viewEggsL2:not([style*="display:none"]) #defDirtyL2',
+        before: async()=>{ closeSidebarTutorial(); if (typeof showTab === 'function') showTab('tabEggs'); await wait(20); }
+      },
+      {
+        title: 'Mortality tab',
+        text: 'Go here to record dead or culled birds. Choose the pen first, then log male or female mortality as it happens.',
+        selector: '#opsMortality',
+        before: async()=>{ openSidebarTutorial(); expandOpsTutorial(); if (typeof showTab === 'function') showTab('tabMortality'); await wait(20); }
+      },
+      {
+        title: 'Mortality buttons',
+        text: 'These are your quick mortality buttons. Tap the right category to add one bird. Undo reverses the most recent mortality action.',
+        selector: '#deadM',
+        before: async()=>{ closeSidebarTutorial(); if (typeof showTab === 'function') showTab('tabMortality'); await wait(20); }
+      },
+      {
+        title: 'Weights tab',
+        text: 'Use Weights for weekly body-weight entry. Fill in averages, CV, and uniformity, then save all weights for the week date shown.',
+        selector: '#bwSave',
+        before: async()=>{ closeSidebarTutorial(); if (typeof showTab === 'function') showTab('tabWeights'); await wait(20); }
+      },
+      {
+        title: 'Logs, charts, and the rest',
+        text: 'Logs summarizes your data, Charts shows trends, Calendar gives day and week views, and Admin controls setup, feed rates, exports, and sync. You can replay this tutorial anytime from the sidebar.',
+        selector: '#sideItemCharts',
+        before: async()=>{ openSidebarTutorial(); if (typeof showTab === 'function') showTab('tabCharts'); await wait(20); }
+      }
+    ];
+
+    async function resolveTutorialTarget(selector){
+      for (let i = 0; i < 5; i++) {
+        const el = getVisibleMatch(selector);
+        if (el && isVisible(el)) return el;
+        await wait(25);
+      }
+      return getVisibleMatch(selector);
+    }
+
+    async function showTutorialStep(idx){
+      if (!tutorialRunning) return;
+      const step = tutorialSteps[idx];
+      if (!step) return;
+      tutorialIndex = idx;
+      removeTutorialHighlight();
+      tutorialScreen?.classList.add('show');
+      tutorialStepCount.textContent = `Step ${idx+1} of ${tutorialSteps.length}`;
+      tutorialTitle.textContent = step.title;
+      tutorialBody.textContent = step.text;
+      btnTutorialBack.disabled = idx === 0;
+      btnTutorialNext.textContent = idx === tutorialSteps.length - 1 ? 'Done' : 'Next';
+      tutorialCard?.classList.add('show');
+      if (typeof step.before === 'function') await step.before();
+      const target = await resolveTutorialTarget(step.selector);
+      tutorialTarget = target;
+      if (target) {
+        target.classList.add('tutorialTarget');
+        try { target.scrollIntoView({ behavior:'auto', block:'center', inline:'center' }); } catch(e){}
+      }
+      positionTutorialCard(target);
+    }
+
+    function endTutorial(markSeen = true){
+      tutorialRunning = false;
+      tutorialCard?.classList.remove('show');
+      tutorialScreen?.classList.remove('show');
+      removeTutorialHighlight();
+      closeSidebarTutorial();
+      if (markSeen) markTutorialSeen();
+    }
+
+    async function startTutorial(stepIdx = 0){
+      tutorialRunning = true;
+      tutorialScreen?.classList.add('show');
+      tutorialCard?.classList.add('show');
+      await showTutorialStep(stepIdx);
+    }
+
+    function maybeAutoStartTutorial(){
+      if (tutorialAutoStarted) return;
+      if (!currentSession) return;
+      const seen = localStorage.getItem(TUTORIAL_SEEN_KEY) === 'true';
+      if (seen) return;
+      tutorialAutoStarted = true;
+      startTutorial(0);
+    }
+
+    btnTutorialReplay && (btnTutorialReplay.onclick = ()=> { tutorialAutoStarted = true; startTutorial(0); });
+    btnTutorialClose && (btnTutorialClose.onclick = ()=> endTutorial(true));
+    btnTutorialSkip && (btnTutorialSkip.onclick = ()=> endTutorial(true));
+    btnTutorialBack && (btnTutorialBack.onclick = ()=> { if (tutorialIndex > 0) showTutorialStep(tutorialIndex - 1); });
+    btnTutorialNext && (btnTutorialNext.onclick = ()=> {
+      if (tutorialIndex >= tutorialSteps.length - 1) { endTutorial(true); return; }
+      showTutorialStep(tutorialIndex + 1);
+    });
+
+    window.startFlockFlowTutorial = startTutorial;
+    window.maybeAutoStartFlockFlowTutorial = maybeAutoStartTutorial;
+
+    requestAnimationFrame(()=> maybeAutoStartTutorial());
+    window.addEventListener('resize', ()=>{ if (tutorialRunning) positionTutorialCard(tutorialTarget); });
+    window.addEventListener('scroll', ()=>{ if (tutorialRunning) positionTutorialCard(tutorialTarget); }, true);
+  })();
+
 
 })();
 </script>
