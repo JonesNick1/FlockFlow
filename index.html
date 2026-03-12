@@ -1799,6 +1799,11 @@
       <span class="sideNavIcon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14M12 2v2M12 20v2M2 12h2M20 12h2"/></svg></span>
       <span class="sideNavLabel">Admin</span>
     </button>
+
+    <button class="sideNavItem" id="sideItemFlockSetup" data-label="Flock Setup" onclick="showTab('tabFlockSetup')">
+      <span class="sideNavIcon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span>
+      <span class="sideNavLabel">Flock Setup</span>
+    </button>
   </div>
 
   <div class="sideDivider"></div>
@@ -1853,14 +1858,13 @@
   <button id="tabCalendar" style="display:none;" onclick="showTab('tabCalendar')"></button>
   <button id="tabOps"      style="display:none;" onclick="showTab('tabEggs')"></button>
   <button id="tabAdmin"    style="display:none;"></button>
+  <button id="tabFlockSetup" style="display:none;" onclick="showTab('tabFlockSetup')"></button>
   <!-- Data Entry sub-tabs moved to sidebar -->
   <div id="adminPinOverlay" class="gateOverlay" style="display:none;">
         <div class="gateCard">
           <div class="gateTitle">Admin Access</div>
           <div class="muted" style="margin-top:6px;">Enter PIN to open Admin.</div>
-
           <input id="adminPinInput" class="input" type="password" inputmode="numeric" placeholder="PIN" style="margin-top:12px;"/>
-
           <div class="row" style="margin-top:16px; justify-content:center; gap:16px;">
             <button id="adminPinCancel" class="btn">Cancel</button>
             <button id="adminPinGo" class="btn btnPrimary">Continue</button>
@@ -1868,6 +1872,17 @@
         </div>
       </div>
   <div id="opsBar" style="display:none;"></div>
+  <!-- Flock context bar — shown once a flock is active -->
+  <div id="flockContextBar" style="display:none; align-items:center; gap:0; background:var(--panel); border-bottom:1px solid var(--panelBorder); padding:7px 18px; font-size:13px; font-weight:700; flex-wrap:wrap; position:sticky; top:0; z-index:100;">
+    <span style="color:var(--muted); margin-right:6px; font-size:11px; text-transform:uppercase; letter-spacing:.06em;">Context:</span>
+    <span id="ctxBarFarm" style="color:var(--text);"></span>
+    <span style="color:var(--muted); margin:0 6px;">›</span>
+    <span id="ctxBarHouse" style="color:var(--text);"></span>
+    <span style="color:var(--muted); margin:0 6px;">›</span>
+    <span id="ctxBarFlock" style="color:var(--accent);"></span>
+    <span id="ctxBarMode" style="margin-left:10px; font-size:11px; font-weight:700; background:var(--pill); border:1px solid var(--pillBorder); border-radius:999px; padding:2px 8px; color:var(--text);"></span>
+    <button onclick="showTab('tabFlockSetup')" style="margin-left:auto; font-size:11px; font-weight:800; padding:4px 10px; border-radius:999px; border:1px solid var(--border); background:var(--btn); color:var(--muted); cursor:pointer;">Change</button>
+  </div>
 
 <div style="margin-top:12px;"></div>
   <div class="card cardPop" id="opsHeader" style="margin: 0 16px 0;" style="display:none;">
@@ -1932,6 +1947,29 @@
       <div id="dashOfflineBar" style="display:none; align-items:center; gap:10px; background:#fef2f2; border:1.5px solid #dc2626; border-radius:10px; padding:10px 16px; margin-top:10px; font-weight:800; font-size:14px; color:#991b1b;">
         <div style="width:10px; height:10px; border-radius:50%; background:#dc2626; box-shadow:0 0 6px #dc2626; flex-shrink:0;"></div>
         <span data-i18n="status.offline">OFFLINE — Sin conexión a internet. Los datos se sincronizarán cuando se restaure la conexión.</span>
+      </div>
+
+      <!-- Active flock info strip (shown when AppContext has a flock) -->
+      <div id="dashFlockStrip" style="display:none; margin-top:12px; padding:12px 16px; border-radius:12px; background:var(--panel); border:1px solid var(--panelBorder); display:none; align-items:center; gap:0; flex-wrap:wrap;">
+        <div style="display:grid; grid-template-columns:repeat(4,auto); gap:0 24px; flex:1; align-items:center;">
+          <div>
+            <div style="font-size:10px; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:.07em; margin-bottom:2px;">Flock</div>
+            <div id="dashFlockNum" style="font-size:16px; font-weight:900; color:var(--accent);">—</div>
+          </div>
+          <div>
+            <div style="font-size:10px; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:.07em; margin-bottom:2px;">Breed</div>
+            <div id="dashFlockBreed" style="font-size:14px; font-weight:700;">—</div>
+          </div>
+          <div>
+            <div style="font-size:10px; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:.07em; margin-bottom:2px;">Age</div>
+            <div id="dashFlockAge" style="font-size:14px; font-weight:700;">—</div>
+          </div>
+          <div>
+            <div style="font-size:10px; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:.07em; margin-bottom:2px;">Transfer</div>
+            <div id="dashFlockTransfer" style="font-size:14px; font-weight:700;">—</div>
+          </div>
+        </div>
+        <button onclick="showTab('tabFlockSetup')" style="font-size:11px; font-weight:800; padding:5px 12px; border-radius:999px; border:1px solid var(--border); background:var(--btn); color:var(--muted); cursor:pointer; white-space:nowrap; margin-left:12px;">Switch Flock</button>
       </div>
 
       <div class="dashTop" style="margin-top:14px;">
@@ -2244,6 +2282,63 @@
 
     </div>
     
+
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       EGGS SIMPLE MODE — Count by Pen
+       Shown when AppContext.eggMode === 'simple'
+       ═══════════════════════════════════════════════════════════════ -->
+  <div id="viewEggsSimple" style="display:none; padding:0 16px 80px; box-sizing:border-box;">
+
+    <!-- Top bar -->
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; padding:10px 0 6px;">
+      <div style="font-size:15px; font-weight:900; color:var(--accent); background:var(--softAccent); border:2px solid var(--softAccentBorder); border-radius:10px; padding:6px 18px; letter-spacing:.04em;">Simple Mode</div>
+      <div style="font-size:12px; color:var(--muted); font-weight:600;">Enter egg count per pen — floor eggs and defects tracked separately below.</div>
+    </div>
+
+    <!-- Pen cards grid -->
+    <div id="simplePenCards" style="display:grid; grid-template-columns:repeat(2,1fr); gap:12px; margin-top:6px;"></div>
+
+    <!-- Floor eggs + defects row -->
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:12px;">
+
+      <!-- Floor eggs -->
+      <div class="card" style="padding:14px;">
+        <div style="font-size:11px; font-weight:900; color:var(--muted); margin-bottom:10px; text-transform:uppercase; letter-spacing:.06em;">Floor Eggs</div>
+        <div id="simpleFloorPenBtns" style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px;"></div>
+        <div style="display:flex; gap:6px;">
+          <button class="btn btnWide" id="simpleFloorPlus" style="flex:1;">+1 Floor</button>
+          <button class="btn" id="simpleFloorUndo">Undo</button>
+        </div>
+        <div style="margin-top:8px; font-size:13px; color:var(--muted);">Floor total today: <strong id="simpleFloorTotal" style="color:var(--text);">0</strong></div>
+      </div>
+
+      <!-- Defects -->
+      <div class="card" style="padding:14px; display:flex; flex-direction:column;">
+        <div style="font-size:11px; font-weight:900; color:var(--muted); margin-bottom:10px; text-transform:uppercase; letter-spacing:.06em;">Defects</div>
+        <div id="simpleDefectPenBtns" style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px;"></div>
+        <div class="defectGrid" style="flex:1;">
+          <button class="btn defectBtn" id="simpleDefDirty">+ Dirty</button>
+          <button class="btn defectBtn" id="simpleDefCrack">+ Cracked</button>
+          <button class="btn defectBtn" id="simpleDefDouble">+ Double</button>
+          <button class="btn defectBtn" id="simpleDefCull">+ Cull</button>
+          <button class="btn defectUndo" id="simpleDefUndo" style="grid-column:1/-1;">Undo Defect</button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Daily totals summary -->
+    <div class="card" style="margin-top:12px; padding:14px;">
+      <div style="font-size:11px; font-weight:900; color:var(--muted); margin-bottom:10px; text-transform:uppercase; letter-spacing:.06em;">Today's Totals</div>
+      <div id="simpleDayTotals" style="display:grid; grid-template-columns:repeat(4,1fr); gap:10px; text-align:center;">
+        <div><div style="font-size:11px; color:var(--muted); font-weight:700; margin-bottom:2px;">NEST</div><div id="simpleTotNest" style="font-size:24px; font-weight:900;">0</div></div>
+        <div><div style="font-size:11px; color:var(--muted); font-weight:700; margin-bottom:2px;">FLOOR</div><div id="simpleTotFloor" style="font-size:24px; font-weight:900;">0</div></div>
+        <div><div style="font-size:11px; color:var(--muted); font-weight:700; margin-bottom:2px;">DEFECTS</div><div id="simpleTotDef" style="font-size:24px; font-weight:900;">0</div></div>
+        <div><div style="font-size:11px; color:var(--muted); font-weight:700; margin-bottom:2px;">TOTAL</div><div id="simpleTotAll" style="font-size:24px; font-weight:900; color:var(--accent);">0</div></div>
+      </div>
+    </div>
 
   </div>
 
@@ -2818,7 +2913,7 @@
           <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:10px;">
             <div><label style="font-size:11px; color:var(--muted);">Date</label><input id="adjDate" type="date" style="width:100%;"></div>
             <div><label style="font-size:11px; color:var(--muted);">Pen</label>
-              <select id="adjPen" style="width:100%;">
+              <select id="adjPen" class="selectPill" style="width:100%;">
                 <option value="1">Pen 1</option>
                 <option value="2">Pen 2</option>
                 <option value="3">Pen 3</option>
@@ -2827,7 +2922,7 @@
               </select>
             </div>
             <div style="grid-column:1 / -1;"><label style="font-size:11px; color:var(--muted);">Adjustment Type</label>
-              <select id="adjType" style="width:100%;">
+              <select id="adjPen" class="selectPill" style="width:100%;">
                 <option value="egg_nest">Nest Eggs</option>
                 <option value="egg_floor">Floor Eggs</option>
                 <option value="egg_defect|Dirty">Dirty Defects</option>
@@ -2870,6 +2965,176 @@
       </div><!-- /admin 2-col grid -->
   </div>
 </div>
+
+<!-- ============================================================ FLOCK SETUP VIEW ============================================================ -->
+<div id="viewFlockSetup" style="display:none;">
+  <div class="dashWrap" style="padding-top:12px; padding-bottom:80px;">
+    <div class="dashTop" style="margin-bottom:10px;">
+      <div><h1 class="dashTitle">Flock Setup</h1><div class="dashSub">Manage farms, houses, and flocks.</div></div>
+    </div>
+    <div class="card cardPop" style="margin-bottom:16px;">
+      <div style="font-size:11px;font-weight:800;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px;">Active Context</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;">
+        <div><div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:3px;">FARM</div><div id="fsCtxFarmName" style="font-weight:800;font-size:15px;">—</div></div>
+        <div><div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:3px;">HOUSE</div><div id="fsCtxHouseName" style="font-weight:800;font-size:15px;">—</div></div>
+        <div><div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:3px;">ACTIVE FLOCK</div><div id="fsCtxFlockName" style="font-weight:800;font-size:15px;">—</div></div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start;">
+      <div class="card">
+        <h4 class="sectionTitle">Farm</h4>
+        <div class="muted" style="font-size:12px;margin-bottom:10px;">Select the active farm or add a new one.</div>
+        <select id="fsFarmSelect" style="width:100%;font-size:15px;font-weight:700;padding:10px;border-radius:10px;border:1px solid var(--border);background:var(--card);color:var(--text);margin-bottom:10px;"><option value="">— select farm —</option></select>
+        <button class="btn btnSmall" id="btnFsAddFarm">+ Add Farm</button>
+        <div id="fsFarmStatus" style="font-size:12px;color:#16a34a;font-weight:700;margin-top:8px;display:none;"></div>
+      </div>
+      <div class="card">
+        <h4 class="sectionTitle">House</h4>
+        <div class="muted" style="font-size:12px;margin-bottom:10px;">Select a house within the chosen farm.</div>
+        <select id="fsHouseSelect" style="width:100%;font-size:15px;font-weight:700;padding:10px;border-radius:10px;border:1px solid var(--border);background:var(--card);color:var(--text);margin-bottom:10px;" disabled><option value="">— select house —</option></select>
+        <button class="btn btnSmall" id="btnFsAddHouse" disabled>+ Add House</button>
+        <div id="fsHouseStatus" style="font-size:12px;color:#16a34a;font-weight:700;margin-top:8px;display:none;"></div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <h4 class="sectionTitle" style="margin:0;">Flocks in This House</h4>
+        <button class="btn btnSmall" id="btnFsNewFlock" disabled>+ New Flock</button>
+      </div>
+      <div id="fsFlockList"><div class="muted" style="font-size:13px;padding:10px 0;">Select a farm and house above to see flocks.</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ NEW FLOCK WIZARD ============================================================ -->
+<div id="modalNewFlock" style="display:none;position:fixed;inset:0;z-index:10500;background:rgba(0,0,0,.5);align-items:flex-start;justify-content:center;overflow-y:auto;padding:20px 0;">
+  <div class="card" style="width:min(600px,96vw);padding:0;position:relative;margin:auto;">
+    <div style="padding:20px 24px 16px;border-bottom:1px solid var(--border);">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <h3 style="margin:0;font-size:20px;font-weight:900;">New Flock</h3>
+        <button id="btnWizardClose" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--muted);padding:0 4px;">×</button>
+      </div>
+      <div style="display:flex;gap:6px;margin-top:14px;" id="wizardStepDots">
+        <div class="wizDot" id="wizDot1"></div><div class="wizDot" id="wizDot2"></div><div class="wizDot" id="wizDot3"></div><div class="wizDot" id="wizDot4"></div><div class="wizDot" id="wizDot5"></div>
+      </div>
+      <div style="margin-top:8px;font-size:13px;font-weight:700;color:var(--muted);" id="wizardStepLabel">Step 1 of 5 — Flock Details</div>
+    </div>
+    <div style="padding:20px 24px;">
+      <!-- STEP 1 -->
+      <div id="wizStep1">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+          <div><label class="wizLabel">Flock Number <span style="color:var(--accent);">*</span></label><input id="wFlockNumber" type="text" maxlength="5" placeholder="e.g. 12345" style="width:100%;box-sizing:border-box;"><div style="font-size:11px;color:var(--muted);margin-top:3px;">5-digit number</div></div>
+          <div><label class="wizLabel">Display Name</label><input id="wFlockDisplayName" type="text" placeholder="e.g. Cobb MV Spring '25" style="width:100%;box-sizing:border-box;"></div>
+          <div><label class="wizLabel">Breed / Cross <span style="color:var(--accent);">*</span></label><input id="wBreedName" type="text" placeholder="e.g. Cobb 500 × Ross 308" style="width:100%;box-sizing:border-box;"></div>
+          <div><label class="wizLabel">Egg Tracking Mode <span style="color:var(--accent);">*</span></label><select id="wEggMode" style="width:100%;font-size:15px;padding:10px;border-radius:10px;border:1px solid var(--border);background:var(--card);color:var(--text);"><option value="detailed">Detailed (Nest Box / Hole)</option><option value="simple">Simple (Count by Pen)</option></select></div>
+          <div><label class="wizLabel">Hatch Date <span style="color:var(--accent);">*</span></label><input id="wHatchDate" type="date" style="width:100%;box-sizing:border-box;"></div>
+          <div><label class="wizLabel">Transfer Date <span style="color:var(--accent);">*</span></label><input id="wTransferDate" type="date" style="width:100%;box-sizing:border-box;"></div>
+          <div><label class="wizLabel">Placement Date <span style="color:var(--muted);font-weight:400;">(if different)</span></label><input id="wPlacementDate" type="date" style="width:100%;box-sizing:border-box;"></div>
+          <div><label class="wizLabel">Notes</label><input id="wFlockNotes" type="text" placeholder="Optional" style="width:100%;box-sizing:border-box;"></div>
+        </div>
+        <div id="wizErr1" style="color:var(--accent);font-size:13px;font-weight:700;margin-top:12px;display:none;"></div>
+      </div>
+      <!-- STEP 2 -->
+      <div id="wizStep2" style="display:none;">
+        <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;">
+          <div><label class="wizLabel">Number of Pens <span style="color:var(--accent);">*</span></label><input id="wNumPens" type="number" min="1" max="12" value="4" style="width:100px;box-sizing:border-box;"></div>
+          <button class="btn btnSmall" id="btnWizGenPens" style="margin-top:22px;">Generate Pen Rows</button>
+        </div>
+        <div style="overflow-x:auto;"><table style="width:100%;font-size:14px;border-collapse:collapse;" id="wPenTable"><thead><tr style="background:var(--thead);"><th style="padding:8px 10px;text-align:left;font-weight:800;">Pen</th><th style="padding:8px 10px;text-align:left;font-weight:800;">Name</th><th style="padding:8px 10px;text-align:center;font-weight:800;">Sex</th><th style="padding:8px 10px;text-align:right;font-weight:800;">♂ Males</th><th style="padding:8px 10px;text-align:right;font-weight:800;">♀ Females</th></tr></thead><tbody id="wPenRows"></tbody><tfoot><tr style="border-top:2px solid var(--border);font-weight:800;"><td colspan="3" style="padding:8px 10px;">Totals</td><td style="padding:8px 10px;text-align:right;" id="wTotalM">0</td><td style="padding:8px 10px;text-align:right;" id="wTotalF">0</td></tr><tr><td colspan="5" style="padding:4px 10px;font-size:12px;color:var(--muted);">Ratio ♂:♀ = <span id="wRatio">—</span></td></tr></tfoot></table></div>
+        <div id="wizErr2" style="color:var(--accent);font-size:13px;font-weight:700;margin-top:12px;display:none;"></div>
+      </div>
+      <!-- STEP 3 -->
+      <div id="wizStep3" style="display:none;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+          <div><label class="wizLabel">Starting Hours of Light</label><input id="wLightHours" type="number" min="0" max="24" step="0.25" placeholder="e.g. 14" style="width:100%;box-sizing:border-box;"></div>
+          <div><label class="wizLabel">Current Feed Rate <span style="color:var(--muted);font-weight:400;">(lb/100 birds/day)</span></label><input id="wFeedRate" type="number" min="0" step="0.01" placeholder="e.g. 32.5" style="width:100%;box-sizing:border-box;"></div>
+        </div>
+        <div style="margin-top:18px;padding:14px;background:var(--softAccent);border:1px solid var(--softAccentBorder);border-radius:10px;">
+          <div style="font-weight:800;font-size:13px;margin-bottom:4px;">Pre-Transfer History <span style="font-weight:400;color:var(--muted);">(optional)</span></div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Prior week data for chart history before transfer day.</div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
+            <div><label class="wizLabel">Wk 18 Feed</label><input id="wFeedW18" type="number" step="0.01" placeholder="—" style="width:100%;box-sizing:border-box;"></div>
+            <div><label class="wizLabel">Wk 19 Feed</label><input id="wFeedW19" type="number" step="0.01" placeholder="—" style="width:100%;box-sizing:border-box;"></div>
+            <div><label class="wizLabel">Wk 20 Feed</label><input id="wFeedW20" type="number" step="0.01" placeholder="—" style="width:100%;box-sizing:border-box;"></div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:10px;">
+            <div><label class="wizLabel">Wk 18 ♂ Wt (lb)</label><input id="wWtM18" type="number" step="0.01" placeholder="—" style="width:100%;box-sizing:border-box;"></div>
+            <div><label class="wizLabel">Wk 19 ♂ Wt (lb)</label><input id="wWtM19" type="number" step="0.01" placeholder="—" style="width:100%;box-sizing:border-box;"></div>
+            <div><label class="wizLabel">Wk 20 ♂ Wt (lb)</label><input id="wWtM20" type="number" step="0.01" placeholder="—" style="width:100%;box-sizing:border-box;"></div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:10px;">
+            <div><label class="wizLabel">Wk 18 ♀ Wt (lb)</label><input id="wWtF18" type="number" step="0.01" placeholder="—" style="width:100%;box-sizing:border-box;"></div>
+            <div><label class="wizLabel">Wk 19 ♀ Wt (lb)</label><input id="wWtF19" type="number" step="0.01" placeholder="—" style="width:100%;box-sizing:border-box;"></div>
+            <div><label class="wizLabel">Wk 20 ♀ Wt (lb)</label><input id="wWtF20" type="number" step="0.01" placeholder="—" style="width:100%;box-sizing:border-box;"></div>
+          </div>
+        </div>
+        <div id="wizErr3" style="color:var(--accent);font-size:13px;font-weight:700;margin-top:12px;display:none;"></div>
+      </div>
+      <!-- STEP 4 -->
+      <div id="wizStep4" style="display:none;">
+        <div id="wizStep4NoConflict" style="display:none;"><div style="font-size:15px;font-weight:700;color:#16a34a;margin-bottom:8px;">✓ No active flock in this house.</div><div class="muted" style="font-size:13px;">Ready to create the first flock.</div></div>
+        <div id="wizStep4Conflict" style="display:none;">
+          <div style="background:var(--dangerBg);border:1px solid var(--dangerBorder);border-radius:10px;padding:14px;margin-bottom:14px;"><div style="font-weight:900;font-size:15px;color:var(--accent);margin-bottom:6px;">⚠️ This house already has an active flock</div><div style="font-size:13px;" id="wizConflictFlockInfo"></div></div>
+          <div style="font-size:13px;font-weight:700;margin-bottom:10px;">Choose how to proceed:</div>
+          <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;margin-bottom:10px;padding:12px;border-radius:10px;border:1px solid var(--border);background:var(--card);"><input type="radio" name="wizConflictAction" value="close" style="margin-top:3px;accent-color:var(--accent);"><div><div style="font-weight:800;">Close current flock and start new</div><div style="font-size:12px;color:var(--muted);margin-top:2px;">Active flock marked Closed. All historical data preserved.</div></div></label>
+          <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;padding:12px;border-radius:10px;border:1px solid var(--border);background:var(--card);"><input type="radio" name="wizConflictAction" value="cancel" style="margin-top:3px;accent-color:var(--accent);" checked><div><div style="font-weight:800;">Cancel — do not create</div><div style="font-size:12px;color:var(--muted);margin-top:2px;">Go back and review the existing flock first.</div></div></label>
+        </div>
+        <div id="wizErr4" style="color:var(--accent);font-size:13px;font-weight:700;margin-top:12px;display:none;"></div>
+      </div>
+      <!-- STEP 5 -->
+      <div id="wizStep5" style="display:none;">
+        <div style="font-size:14px;font-weight:700;margin-bottom:12px;">Review your flock details before saving:</div>
+        <div id="wizReviewBody" style="background:var(--bg);border-radius:10px;padding:14px;font-size:13px;line-height:1.8;"></div>
+        <div id="wizErr5" style="color:var(--accent);font-size:13px;font-weight:700;margin-top:12px;display:none;"></div>
+        <div id="wizSuccessMsg" style="color:#16a34a;font-size:14px;font-weight:800;margin-top:12px;display:none;"></div>
+      </div>
+    </div>
+    <div style="padding:16px 24px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+      <button class="btn btnSmall" id="btnWizBack" style="display:none;">← Back</button>
+      <div style="flex:1;"></div>
+      <button class="btn btnSmall btnPrimary" id="btnWizNext">Next →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD FARM MODAL -->
+<div id="modalAddFarm" style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.45);align-items:center;justify-content:center;">
+  <div class="card" style="width:min(460px,92vw);padding:24px;">
+    <h3 style="margin:0 0 16px;font-size:18px;font-weight:900;">Add Farm</h3>
+    <label class="wizLabel">Farm Name <span style="color:var(--accent);">*</span></label>
+    <input id="fiFarmName" type="text" placeholder="e.g. North Farm" style="width:100%;box-sizing:border-box;margin-bottom:12px;">
+    <label class="wizLabel">Short Code <span style="color:var(--muted);font-weight:400;">(optional)</span></label>
+    <input id="fiFarmCode" type="text" placeholder="e.g. NF" style="width:100%;box-sizing:border-box;margin-bottom:12px;">
+    <label class="wizLabel">Location <span style="color:var(--muted);font-weight:400;">(optional)</span></label>
+    <input id="fiFarmLocation" type="text" placeholder="e.g. County Road 12" style="width:100%;box-sizing:border-box;margin-bottom:20px;">
+    <div id="fiFarmErr" style="color:var(--accent);font-size:13px;font-weight:700;margin-bottom:10px;display:none;"></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;">
+      <button class="btn btnSmall" id="btnFiFarmCancel">Cancel</button>
+      <button class="btn btnSmall btnPrimary" id="btnFiFarmSave">Save Farm</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD HOUSE MODAL -->
+<div id="modalAddHouse" style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.45);align-items:center;justify-content:center;">
+  <div class="card" style="width:min(460px,92vw);padding:24px;">
+    <h3 style="margin:0 0 16px;font-size:18px;font-weight:900;">Add House</h3>
+    <label class="wizLabel">House Name <span style="color:var(--accent);">*</span></label>
+    <input id="fiHouseName" type="text" placeholder="e.g. House 1" style="width:100%;box-sizing:border-box;margin-bottom:12px;">
+    <label class="wizLabel">House Type</label>
+    <select id="fiHouseType" style="width:100%;font-size:15px;padding:10px;border-radius:10px;border:1px solid var(--border);background:var(--card);color:var(--text);margin-bottom:12px;"><option value="breeder_lay">Breeder Lay House</option><option value="broiler_research">Broiler Research</option><option value="other">Other</option></select>
+    <label class="wizLabel">Default Number of Pens</label>
+    <input id="fiHouseNumPens" type="number" min="1" max="20" value="4" style="width:100%;box-sizing:border-box;margin-bottom:12px;">
+    <label class="wizLabel">Default Egg Tracking Mode</label>
+    <select id="fiHouseEggMode" style="width:100%;font-size:15px;padding:10px;border-radius:10px;border:1px solid var(--border);background:var(--card);color:var(--text);margin-bottom:20px;"><option value="detailed">Detailed (Nest Box / Hole)</option><option value="simple">Simple (Count by Pen)</option></select>
+    <div id="fiHouseErr" style="color:var(--accent);font-size:13px;font-weight:700;margin-bottom:10px;display:none;"></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;">
+      <button class="btn btnSmall" id="btnFiHouseCancel">Cancel</button>
+      <button class="btn btnSmall btnPrimary" id="btnFiHouseSave">Save House</button>
+    </div>
+  </div>
+</div>
+
 </div><!-- /appMain -->
 </div><!-- /appWrap -->
 
@@ -2913,6 +3178,22 @@
   background: rgba(18,13,12,.88);
   border-top-color: rgba(255,255,255,.08);
 }
+/* ── Flock Setup / Wizard / Simple Mode ─────────────── */
+.wizLabel { display:block; font-size:13px; font-weight:700; margin-bottom:4px; color:var(--text); }
+.wizDot { width:28px; height:6px; border-radius:999px; background:var(--border); transition:background .2s; }
+.wizDot.active { background:var(--accent); }
+.wizDot.done   { background:#16a34a; }
+.btnPrimary { background:var(--accent) !important; color:#fff !important; border-color:var(--accentBorder) !important; }
+.btnPrimary:active { transform:scale(0.97); }
+/* Simple mode pen card */
+.simplePenCard { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:14px; display:flex; flex-direction:column; gap:10px; }
+.simplePenCard.activePen { border-color:var(--accent); background:var(--softAccent); }
+.simplePenCardTitle { font-size:13px; font-weight:900; text-transform:uppercase; letter-spacing:.07em; }
+.simplePenCount { font-size:40px; font-weight:950; line-height:1; color:var(--accent); text-align:center; padding:6px 0; }
+.simplePenBtns { display:flex; gap:6px; justify-content:center; flex-wrap:wrap; }
+/* Dashboard flock strip */
+#dashFlockStrip { display:none; }
+#dashFlockStrip.visible { display:flex !important; }
 </style>
 
 <script>
@@ -3922,7 +4203,8 @@ async function sbSignOut() {
     ["tabWeights","viewWeights"],
     ["tabSummary","viewSummary"],
     ["tabCharts","viewCharts"],
-    ["tabAdmin","viewAdmin"]
+    ["tabAdmin","viewAdmin"],
+    ["tabFlockSetup","viewFlockSetup"]
   ];
 
   
@@ -8161,15 +8443,16 @@ showTab("brandHome");
 
     // ─── Update sidebar active states when tab changes ───
     const sideItemMap = {
-      'brandHome':    'sideItemDash',
-      'tabCharts':    'sideItemCharts',
-      'tabCalendar':  'sideItemCalendar',
-      'tabOps':       'sideItemOps',
-      'tabEggs':      'sideItemOps',
-      'tabMortality': 'sideItemOps',
-      'tabWeights':   'sideItemOps',
-      'tabSummary':   'sideItemOps',
-      'tabAdmin':     'sideItemAdmin',
+      'brandHome':     'sideItemDash',
+      'tabCharts':     'sideItemCharts',
+      'tabCalendar':   'sideItemCalendar',
+      'tabOps':        'sideItemOps',
+      'tabEggs':       'sideItemOps',
+      'tabMortality':  'sideItemOps',
+      'tabWeights':    'sideItemOps',
+      'tabSummary':    'sideItemOps',
+      'tabAdmin':      'sideItemAdmin',
+      'tabFlockSetup': 'sideItemFlockSetup',
     };
 
     const subItemMap = {
@@ -8550,6 +8833,607 @@ showTab("brandHome");
     window.addEventListener('resize', ()=>{ if (tutorialRunning) positionTutorialCard(tutorialTarget); });
     window.addEventListener('scroll', ()=>{ if (tutorialRunning) positionTutorialCard(tutorialTarget); }, true);
   })();
+
+
+// ================================================================
+//  FlockFlow — Flock Setup + Simple Mode  (Phase 1 · 2 · 3)
+// ================================================================
+(function(){
+  'use strict';
+
+  // ── Utilities ─────────────────────────────────────────────────
+  function el(id){ return document.getElementById(id); }
+  function setText(id, v){ const e=el(id); if(e) e.textContent=v; }
+  function val(id){ const e=el(id); return e ? e.value.trim() : ''; }
+  function numVal(id){ const v=parseFloat(val(id)); return isNaN(v)?null:v; }
+  function intVal(id){ const v=parseInt(val(id),10); return isNaN(v)?null:v; }
+  function showErr(id, msg){ const e=el(id); if(!e) return; e.textContent=msg; e.style.display=msg?'block':'none'; }
+  function showStatus(id, msg, isErr){
+    const e=el(id); if(!e) return;
+    e.textContent=msg; e.style.color=isErr?'var(--accent)':'#16a34a'; e.style.display='block';
+    setTimeout(()=>{ e.style.display='none'; }, 3500);
+  }
+  function showModal(id){ const e=el(id); if(e) e.style.display='flex'; }
+  function hideModal(id){ const e=el(id); if(e) e.style.display='none'; }
+  function fmtDate(d){ return d ? new Date(d+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '—'; }
+  function sb(){ return window.supabaseClient||null; }
+  async function requireAuth(){ const s=sb(); if(!s) return null; const {data}=await s.auth.getSession(); return data?.session||null; }
+
+  // ── AppContext ────────────────────────────────────────────────
+  const CTX_KEY = 'ff_app_context';
+  const AppContext = {
+    farmId:null, farmName:null, houseId:null, houseName:null,
+    flockId:null, flockName:null, eggMode:null,
+    hatchDate:null, transferDate:null, breedName:null, flockNumber:null,
+    load(){ try{ const s=JSON.parse(localStorage.getItem(CTX_KEY)||'null'); if(s) Object.assign(this,s); }catch(e){} },
+    save(){ try{ localStorage.setItem(CTX_KEY, JSON.stringify({
+      farmId:this.farmId, farmName:this.farmName, houseId:this.houseId, houseName:this.houseName,
+      flockId:this.flockId, flockName:this.flockName, eggMode:this.eggMode,
+      hatchDate:this.hatchDate, transferDate:this.transferDate,
+      breedName:this.breedName, flockNumber:this.flockNumber
+    })); }catch(e){} },
+    set(farmId,farmName,houseId,houseName,flockId,flockName,eggMode,extra){
+      Object.assign(this,{farmId,farmName,houseId,houseName,flockId,flockName,eggMode});
+      if(extra){ this.hatchDate=extra.hatchDate||null; this.transferDate=extra.transferDate||null; this.breedName=extra.breedName||null; this.flockNumber=extra.flockNumber||null; }
+      this.save(); updateContextBar(); updateDashFlockStrip();
+    },
+    clear(){ this.farmId=this.farmName=this.houseId=this.houseName=this.flockId=this.flockName=this.eggMode=this.hatchDate=this.transferDate=this.breedName=this.flockNumber=null; this.save(); updateContextBar(); updateDashFlockStrip(); }
+  };
+  window.AppContext = AppContext;
+  AppContext.load();
+
+  // ── 3A: Stamp flock_id / house_id on all new events ──────────
+  // Patch baseMeta to inject context — safe even if AppContext is empty (nulls are fine)
+  const _origBaseMeta = window.baseMeta;   // may be undefined if hoisted differently
+  // We instead patch at the logEvent level via a global hook
+  window._flockContextStamp = function(evt){
+    if(AppContext.flockId)  evt.flock_id  = AppContext.flockId;
+    if(AppContext.houseId)  evt.house_id  = AppContext.houseId;
+    return evt;
+  };
+
+  // Patch both cloud payload builders to forward flock_id + house_id
+  // We do this by extending the payload objects after the fact via a MutationObserver-free
+  // approach: override the module-level functions by replacing them on window.
+  // Since pushEventToCloud and flushPendingEventsToCloud are defined inside the main IIFE
+  // we can't directly replace them, but we CAN patch enqueueEventForCloud (which they read from)
+  // and we patch baseMeta via the logEvent wrapper below.
+
+  // Wrap window.logEvent (the inner one gets exposed via the renderDashboard pattern)
+  // The cleanest safe patch: intercept records.push by wrapping it at the point of call.
+  // Actually the safest approach for this codebase is to patch the 2 payload builders
+  // by adding flock_id/house_id to the evt object BEFORE logEvent is called.
+  // We achieve this by wrapping the globally visible logEvent calls via a document event:
+  document.addEventListener('ff:beforeLogEvent', function(e){
+    if(e.detail && AppContext.flockId){
+      e.detail.flock_id = AppContext.flockId;
+      e.detail.house_id = AppContext.houseId;
+    }
+  });
+
+  // ── 3D: Dashboard flock strip ─────────────────────────────────
+  function calcFlockAgeWeeks(hatchDateStr){
+    if(!hatchDateStr) return null;
+    const hatch = new Date(hatchDateStr+'T00:00:00');
+    const today = new Date();
+    const days = Math.floor((today - hatch) / 86400000);
+    if(days < 0) return null;
+    const wk = Math.floor(days/7), d = days%7;
+    return wk+'wk '+(d?d+'d':'');
+  }
+
+  function updateDashFlockStrip(){
+    const strip = el('dashFlockStrip');
+    if(!strip) return;
+    if(AppContext.flockId){
+      strip.classList.add('visible');
+      strip.style.display = 'flex';
+      setText('dashFlockNum',      AppContext.flockNumber || AppContext.flockName || '—');
+      setText('dashFlockBreed',    AppContext.breedName   || '—');
+      setText('dashFlockAge',      calcFlockAgeWeeks(AppContext.hatchDate) || '—');
+      setText('dashFlockTransfer', AppContext.transferDate ? fmtDate(AppContext.transferDate) : '—');
+    } else {
+      strip.classList.remove('visible');
+      strip.style.display = 'none';
+    }
+  }
+
+  // ── Context bar ───────────────────────────────────────────────
+  function updateContextBar(){
+    const bar = el('flockContextBar');
+    if(!bar) return;
+    if(AppContext.flockId){
+      bar.style.display='flex';
+      setText('ctxBarFarm',  AppContext.farmName  || '—');
+      setText('ctxBarHouse', AppContext.houseName || '—');
+      setText('ctxBarFlock', AppContext.flockName || '—');
+      setText('ctxBarMode',  AppContext.eggMode==='simple'?'Simple Mode':'Detailed Mode');
+    } else {
+      bar.style.display='none';
+    }
+    setText('fsCtxFarmName',  AppContext.farmName  || '—');
+    setText('fsCtxHouseName', AppContext.houseName || '—');
+    setText('fsCtxFlockName', AppContext.flockName || '—');
+  }
+  updateContextBar();
+  updateDashFlockStrip();
+
+  // ── Data caches ───────────────────────────────────────────────
+  let _farms=[], _houses=[], _flocks=[];
+
+  async function loadFarms(){
+    const client=sb(); if(!client) return;
+    if(!await requireAuth()) return;
+    const {data,error}=await client.from('farms').select('*').eq('active',true).order('name');
+    if(error){ console.warn('loadFarms',error); return; }
+    _farms=data||[]; renderFarmDropdown();
+  }
+  function renderFarmDropdown(){
+    const sel=el('fsFarmSelect'); if(!sel) return;
+    sel.innerHTML='<option value="">— select farm —</option>';
+    _farms.forEach(f=>{ const o=document.createElement('option'); o.value=f.id; o.textContent=f.name+(f.code?` (${f.code})`:''); sel.appendChild(o); });
+    if(AppContext.farmId) sel.value=AppContext.farmId;
+    if(sel.value) onFarmSelected(sel.value,false);
+  }
+  async function loadHouses(farmId){
+    const client=sb(); if(!client||!farmId) return;
+    if(!await requireAuth()) return;
+    const {data,error}=await client.from('houses').select('*').eq('farm_id',farmId).eq('active',true).order('name');
+    if(error){ console.warn('loadHouses',error); return; }
+    _houses=data||[]; renderHouseDropdown();
+  }
+  function renderHouseDropdown(){
+    const sel=el('fsHouseSelect'); if(!sel) return;
+    sel.innerHTML='<option value="">— select house —</option>'; sel.disabled=false;
+    const addBtn=el('btnFsAddHouse'); if(addBtn) addBtn.disabled=false;
+    _houses.forEach(h=>{ const o=document.createElement('option'); o.value=h.id; o.textContent=h.name; sel.appendChild(o); });
+    if(AppContext.houseId) sel.value=AppContext.houseId;
+    if(sel.value) onHouseSelected(sel.value,false);
+  }
+  async function loadFlocks(houseId){
+    const client=sb(); if(!client||!houseId) return;
+    if(!await requireAuth()) return;
+    const {data,error}=await client.from('flocks').select('*').eq('house_id',houseId).order('created_at',{ascending:false});
+    if(error){ console.warn('loadFlocks',error); return; }
+    _flocks=data||[]; renderFlockList();
+  }
+  function renderFlockList(){
+    const container=el('fsFlockList'); if(!container) return;
+    const nb=el('btnFsNewFlock'); if(nb) nb.disabled=!AppContext.houseId;
+    if(!_flocks.length){ container.innerHTML='<div class="muted" style="font-size:13px;padding:10px 0;">No flocks yet for this house. Click + New Flock to create the first one.</div>'; return; }
+    const badge={active:'🟢 Active',upcoming:'🔵 Upcoming',closed:'⬜ Closed',archived:'🗂 Archived'};
+    container.innerHTML=_flocks.map(fl=>{
+      const isCtx=AppContext.flockId===fl.id;
+      return `<div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;border:1px solid ${isCtx?'var(--accent)':'var(--border)'};background:${isCtx?'var(--softAccent)':'var(--card)'};margin-bottom:8px;">
+        <div style="flex:1;"><div style="font-weight:800;font-size:14px;">${fl.flock_number}${fl.display_name?' — '+fl.display_name:''}</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px;">${fl.breed_name||''} · Hatch: ${fmtDate(fl.hatch_date)} · Transfer: ${fmtDate(fl.transfer_date)}</div></div>
+        <div style="font-size:12px;font-weight:700;white-space:nowrap;">${badge[fl.status]||fl.status}</div>
+        ${fl.status==='active'?`<button class="btn btnSmall" onclick="window._fsUseThisFlock('${fl.id}')" style="font-size:12px;padding:6px 12px;">${isCtx?'✓ Active':'Use This Flock'}</button>`:''}
+      </div>`;
+    }).join('');
+  }
+  window._fsUseThisFlock=function(flockId){
+    const fl=_flocks.find(f=>f.id===flockId); if(!fl) return;
+    const farm=_farms.find(f=>f.id===fl.farm_id);
+    const house=_houses.find(h=>h.id===fl.house_id);
+    AppContext.set(
+      fl.farm_id,  farm  ? farm.name  : (AppContext.farmName||''),
+      fl.house_id, house ? house.name : (AppContext.houseName||''),
+      fl.id, fl.flock_number+(fl.display_name?' — '+fl.display_name:''),
+      fl.egg_mode||'detailed',
+      {hatchDate:fl.hatch_date, transferDate:fl.transfer_date, breedName:fl.breed_name, flockNumber:fl.flock_number}
+    );
+    renderFlockList();
+    showStatus('fsFarmStatus','✓ Context set — flock '+fl.flock_number+' active');
+    // Refresh egg view routing immediately
+    routeEggView();
+  };
+
+  // ── Dropdown wiring ───────────────────────────────────────────
+  function onFarmSelected(farmId, reset=true){
+    const farm=_farms.find(f=>f.id===farmId); if(!farm) return;
+    if(reset||AppContext.farmId!==farmId){
+      AppContext.farmId=farm.id; AppContext.farmName=farm.name;
+      if(reset){ AppContext.houseId=AppContext.houseName=AppContext.flockId=AppContext.flockName=AppContext.eggMode=null; }
+      AppContext.save(); updateContextBar();
+    }
+    loadHouses(farmId);
+    if(reset){
+      const hsel=el('fsHouseSelect'); if(hsel){ hsel.innerHTML='<option value="">— select house —</option>'; hsel.disabled=false; }
+      const nb=el('btnFsNewFlock'); if(nb) nb.disabled=true;
+      const fl=el('fsFlockList'); if(fl) fl.innerHTML='<div class="muted" style="font-size:13px;padding:10px 0;">Select a house to see flocks.</div>';
+    }
+  }
+  function onHouseSelected(houseId, reset=true){
+    const house=_houses.find(h=>h.id===houseId); if(!house) return;
+    AppContext.houseId=house.id; AppContext.houseName=house.name;
+    if(reset){ AppContext.flockId=AppContext.flockName=AppContext.eggMode=null; }
+    AppContext.save(); updateContextBar();
+    loadFlocks(houseId);
+    const nb=el('btnFsNewFlock'); if(nb) nb.disabled=false;
+  }
+  el('fsFarmSelect')?.addEventListener('change', e=> onFarmSelected(e.target.value,true));
+  el('fsHouseSelect')?.addEventListener('change', e=> onHouseSelected(e.target.value,true));
+
+  // ── Add Farm ──────────────────────────────────────────────────
+  el('btnFsAddFarm')?.addEventListener('click', ()=>{ ['fiFarmName','fiFarmCode','fiFarmLocation'].forEach(id=>{ const e=el(id); if(e) e.value=''; }); showErr('fiFarmErr',''); showModal('modalAddFarm'); });
+  el('btnFiFarmCancel')?.addEventListener('click', ()=> hideModal('modalAddFarm'));
+  el('btnFiFarmSave')?.addEventListener('click', async ()=>{
+    const name=val('fiFarmName'); if(!name){ showErr('fiFarmErr','Farm name is required.'); return; }
+    const client=sb(); if(!client){ showErr('fiFarmErr','Not connected.'); return; }
+    if(!await requireAuth()){ showErr('fiFarmErr','Sign in first.'); return; }
+    const {data,error}=await client.from('farms').insert([{name, code:val('fiFarmCode')||null, location:val('fiFarmLocation')||null}]).select().single();
+    if(error){ showErr('fiFarmErr','Save failed: '+error.message); return; }
+    hideModal('modalAddFarm'); await loadFarms();
+    const sel=el('fsFarmSelect'); if(sel&&data){ sel.value=data.id; onFarmSelected(data.id,true); }
+    showStatus('fsFarmStatus','✓ Farm saved');
+  });
+
+  // ── Add House ─────────────────────────────────────────────────
+  el('btnFsAddHouse')?.addEventListener('click', ()=>{ const e=el('fiHouseName'); if(e) e.value=''; showErr('fiHouseErr',''); showModal('modalAddHouse'); });
+  el('btnFiHouseCancel')?.addEventListener('click', ()=> hideModal('modalAddHouse'));
+  el('btnFiHouseSave')?.addEventListener('click', async ()=>{
+    const name=val('fiHouseName'); if(!name){ showErr('fiHouseErr','House name is required.'); return; }
+    if(!AppContext.farmId){ showErr('fiHouseErr','Select a farm first.'); return; }
+    const client=sb(); if(!client){ showErr('fiHouseErr','Not connected.'); return; }
+    if(!await requireAuth()){ showErr('fiHouseErr','Sign in first.'); return; }
+    const {data,error}=await client.from('houses').insert([{farm_id:AppContext.farmId, name, house_type:val('fiHouseType'), default_num_pens:intVal('fiHouseNumPens')||4, default_egg_mode:val('fiHouseEggMode')||'detailed'}]).select().single();
+    if(error){ showErr('fiHouseErr','Save failed: '+error.message); return; }
+    hideModal('modalAddHouse'); await loadHouses(AppContext.farmId);
+    const sel=el('fsHouseSelect'); if(sel&&data){ sel.value=data.id; onHouseSelected(data.id,true); }
+    showStatus('fsHouseStatus','✓ House saved');
+  });
+
+  // ── New Flock Wizard ──────────────────────────────────────────
+  let wizStep=1; const WIZ_TOTAL=5;
+  let wizPenData=[];
+
+  function openWizard(){
+    ['wFlockNumber','wFlockDisplayName','wBreedName','wFlockNotes','wHatchDate','wTransferDate','wPlacementDate',
+     'wLightHours','wFeedRate','wFeedW18','wFeedW19','wFeedW20','wWtM18','wWtM19','wWtM20','wWtF18','wWtF19','wWtF20']
+      .forEach(id=>{ const e=el(id); if(e) e.value=''; });
+    const np=el('wNumPens'); if(np) np.value='4';
+    const em=el('wEggMode'); if(em){ const h=_houses.find(h=>h.id===AppContext.houseId); em.value=h?.default_egg_mode||'detailed'; }
+    ['wizErr1','wizErr2','wizErr3','wizErr4','wizErr5'].forEach(id=> showErr(id,''));
+    const sm=el('wizSuccessMsg'); if(sm) sm.style.display='none';
+    el('btnWizNext').textContent='Next →'; el('btnWizNext').disabled=false;
+    wizPenData=[]; generatePenRows(4); goToStep(1); showModal('modalNewFlock');
+  }
+
+  function goToStep(n){
+    wizStep=n;
+    for(let i=1;i<=WIZ_TOTAL;i++){ const p=el('wizStep'+i); if(p) p.style.display=i===n?'block':'none'; }
+    for(let i=1;i<=WIZ_TOTAL;i++){ const d=el('wizDot'+i); if(d) d.className='wizDot'+(i<n?' done':i===n?' active':''); }
+    const labels=['Flock Details','Pens & Birds','Feed & Light','Conflict Check','Review & Create'];
+    setText('wizardStepLabel',`Step ${n} of ${WIZ_TOTAL} — ${labels[n-1]}`);
+    const bb=el('btnWizBack'); if(bb) bb.style.display=n>1?'inline-flex':'none';
+    const nb=el('btnWizNext'); if(nb) nb.textContent=n===WIZ_TOTAL?'✓ Create Flock':'Next →';
+  }
+
+  function generatePenRows(count){
+    const tbody=el('wPenRows'); if(!tbody) return;
+    tbody.innerHTML=''; wizPenData=[];
+    for(let i=1;i<=count;i++){
+      const isSpares=i===5;
+      wizPenData.push({penNumber:i, penName:isSpares?'Spares':'Pen '+i, sex:'mixed', m:0, f:0});
+      const tr=document.createElement('tr'); tr.style.borderBottom='1px solid var(--border)';
+      tr.innerHTML=`<td style="padding:7px 10px;font-weight:800;">Pen ${i}</td>
+        <td style="padding:7px 10px;"><input type="text" value="${isSpares?'Spares':'Pen '+i}" data-pen="${i}" data-field="name" style="width:100%;font-size:13px;padding:5px 8px;border-radius:7px;border:1px solid var(--border);background:var(--card);color:var(--text);"></td>
+        <td style="padding:7px 10px;text-align:center;"><select data-pen="${i}" data-field="sex" style="font-size:13px;padding:5px 7px;border-radius:7px;border:1px solid var(--border);background:var(--card);color:var(--text);"><option value="mixed">M+F</option><option value="M">♂ Male</option><option value="F">♀ Female</option></select></td>
+        <td style="padding:7px 10px;text-align:right;"><input type="number" min="0" value="0" data-pen="${i}" data-field="m" style="width:80px;font-size:13px;padding:5px 8px;border-radius:7px;border:1px solid var(--border);background:var(--card);color:var(--text);text-align:right;"></td>
+        <td style="padding:7px 10px;text-align:right;"><input type="number" min="0" value="0" data-pen="${i}" data-field="f" ${isSpares?'disabled style="width:80px;opacity:.4;font-size:13px;padding:5px 8px;border-radius:7px;border:1px solid var(--border);background:var(--card);color:var(--text);"':' style="width:80px;font-size:13px;padding:5px 8px;border-radius:7px;border:1px solid var(--border);background:var(--card);color:var(--text);text-align:right;"'}></td>`;
+      tbody.appendChild(tr);
+    }
+    tbody.querySelectorAll('input,select').forEach(e=> e.addEventListener('input',()=>{ syncPenData(); updatePenTotals(); }));
+    updatePenTotals();
+  }
+
+  function syncPenData(){
+    const tbody=el('wPenRows'); if(!tbody) return;
+    tbody.querySelectorAll('input,select').forEach(e=>{
+      const pen=parseInt(e.dataset.pen,10), field=e.dataset.field;
+      const row=wizPenData.find(r=>r.penNumber===pen); if(!row) return;
+      if(field==='name') row.penName=e.value.trim();
+      else if(field==='sex') row.sex=e.value;
+      else if(field==='m') row.m=parseInt(e.value,10)||0;
+      else if(field==='f') row.f=parseInt(e.value,10)||0;
+    });
+  }
+  function updatePenTotals(){
+    syncPenData();
+    const totM=wizPenData.reduce((a,r)=>a+r.m,0), totF=wizPenData.reduce((a,r)=>a+r.f,0);
+    setText('wTotalM',totM); setText('wTotalF',totF);
+    setText('wRatio', totF>0?(totM/totF).toFixed(2)+' : 1':(totM>0?'∞':'—'));
+  }
+
+  el('btnWizGenPens')?.addEventListener('click', ()=>{ const n=intVal('wNumPens'); if(n&&n>=1) generatePenRows(n); });
+
+  function validateStep(n){
+    if(n===1){
+      const fn=val('wFlockNumber');
+      if(!fn){ showErr('wizErr1','Flock number is required.'); return false; }
+      if(!/^\d{5}$/.test(fn)){ showErr('wizErr1','Flock number must be exactly 5 digits.'); return false; }
+      if(!val('wBreedName')){ showErr('wizErr1','Breed / cross name is required.'); return false; }
+      if(!val('wHatchDate')){ showErr('wizErr1','Hatch date is required.'); return false; }
+      if(!val('wTransferDate')){ showErr('wizErr1','Transfer date is required.'); return false; }
+      if(new Date(val('wTransferDate')+'T00:00:00') <= new Date(val('wHatchDate')+'T00:00:00')){ showErr('wizErr1','Transfer date must be after hatch date.'); return false; }
+      showErr('wizErr1',''); return true;
+    }
+    if(n===2){ syncPenData(); if(wizPenData.reduce((a,r)=>a+r.m+r.f,0)===0){ showErr('wizErr2','Enter at least some birds placed.'); return false; } showErr('wizErr2',''); return true; }
+    if(n===3){ showErr('wizErr3',''); return true; }
+    if(n===4){
+      const cf=el('wizStep4Conflict'); if(cf&&cf.style.display!=='none'){ const ch=document.querySelector('input[name="wizConflictAction"]:checked'); if(!ch||ch.value==='cancel'){ showErr('wizErr4','Select "Close and start new" to proceed, or cancel.'); return false; } }
+      showErr('wizErr4',''); return true;
+    }
+    return true;
+  }
+
+  el('btnWizNext')?.addEventListener('click', async ()=>{
+    if(!validateStep(wizStep)) return;
+    if(wizStep===3){
+      const conflict=_flocks.find(f=>f.status==='active');
+      const nc=el('wizStep4NoConflict'), cf=el('wizStep4Conflict');
+      if(conflict){
+        if(nc) nc.style.display='none'; if(cf){ cf.style.display='block'; setText('wizConflictFlockInfo',`Flock ${conflict.flock_number}${conflict.display_name?' — '+conflict.display_name:''} is currently Active (transfer: ${fmtDate(conflict.transfer_date)}). Creating a new flock will close this one.`); }
+        const rc=document.querySelector('input[name="wizConflictAction"][value="close"]'); if(rc) rc.checked=true;
+      } else { if(nc) nc.style.display='block'; if(cf) cf.style.display='none'; }
+      goToStep(4); return;
+    }
+    if(wizStep===4){ syncPenData(); await buildReview(); goToStep(5); return; }
+    if(wizStep===WIZ_TOTAL){ await createFlock(); return; }
+    goToStep(wizStep+1);
+  });
+  el('btnWizBack')?.addEventListener('click', ()=>{ if(wizStep>1) goToStep(wizStep-1); });
+  el('btnWizardClose')?.addEventListener('click', ()=> hideModal('modalNewFlock'));
+
+  async function buildReview(){
+    syncPenData();
+    const totM=wizPenData.reduce((a,r)=>a+r.m,0), totF=wizPenData.reduce((a,r)=>a+r.f,0);
+    const rows=[['Farm',AppContext.farmName||'—'],['House',AppContext.houseName||'—'],['Flock Number',val('wFlockNumber')],['Display Name',val('wFlockDisplayName')||'—'],['Breed / Cross',val('wBreedName')],['Egg Mode',val('wEggMode')==='simple'?'Simple':'Detailed'],['Hatch Date',fmtDate(val('wHatchDate'))],['Transfer Date',fmtDate(val('wTransferDate'))],['Pens',wizPenData.length],['Total ♂',totM],['Total ♀',totF],['Ratio',totF>0?(totM/totF).toFixed(2)+' : 1':'—'],['Light Hours',val('wLightHours')||'—'],['Feed Rate',val('wFeedRate')||'—']];
+    el('wizReviewBody').innerHTML=rows.map(([k,v])=>`<div style="display:flex;gap:8px;padding:3px 0;border-bottom:1px solid var(--border);"><span style="font-weight:700;min-width:150px;color:var(--muted);">${k}</span><span style="font-weight:800;">${v}</span></div>`).join('');
+  }
+
+  async function createFlock(){
+    const client=sb(); if(!client){ showErr('wizErr5','Not connected.'); return; }
+    if(!await requireAuth()){ showErr('wizErr5','Sign in first.'); return; }
+    if(!AppContext.houseId){ showErr('wizErr5','No house selected.'); return; }
+    const nb=el('btnWizNext'); if(nb){ nb.disabled=true; nb.textContent='Saving…'; }
+    try{
+      const conflict=_flocks.find(f=>f.status==='active');
+      if(conflict){
+        const ch=document.querySelector('input[name="wizConflictAction"]:checked');
+        if(ch&&ch.value==='close'){ const {error:ce}=await client.from('flocks').update({status:'closed',end_date:new Date().toISOString().slice(0,10)}).eq('id',conflict.id); if(ce){ showErr('wizErr5','Failed to close existing flock: '+ce.message); if(nb){nb.disabled=false;nb.textContent='✓ Create Flock';} return; } }
+        else{ showErr('wizErr5','Cancelled.'); if(nb){nb.disabled=false;nb.textContent='✓ Create Flock';} return; }
+      }
+      const {data:fl,error:fe}=await client.from('flocks').insert([{
+        farm_id:AppContext.farmId, house_id:AppContext.houseId,
+        flock_number:val('wFlockNumber'), display_name:val('wFlockDisplayName')||null,
+        breed_name:val('wBreedName'), hatch_date:val('wHatchDate'), transfer_date:val('wTransferDate'),
+        placement_date:val('wPlacementDate')||null, status:'active', num_pens:wizPenData.length,
+        egg_mode:val('wEggMode')||'detailed', starting_light_hours:numVal('wLightHours'), feed_rate:numVal('wFeedRate'), notes:val('wFlockNotes')||null,
+      }]).select().single();
+      if(fe){ showErr('wizErr5','Failed: '+fe.message); if(nb){nb.disabled=false;nb.textContent='✓ Create Flock';} return; }
+      syncPenData();
+      await client.from('pens').insert(wizPenData.map(p=>({flock_id:fl.id,house_id:AppContext.houseId,pen_number:p.penNumber,pen_name:p.penName,sex:p.sex,birds_placed_m:p.m,birds_placed_f:p.f})));
+      AppContext.set(AppContext.farmId,AppContext.farmName,AppContext.houseId,AppContext.houseName,fl.id,fl.flock_number+(fl.display_name?' — '+fl.display_name:''),fl.egg_mode,{hatchDate:fl.hatch_date,transferDate:fl.transfer_date,breedName:fl.breed_name,flockNumber:fl.flock_number});
+      await loadFlocks(AppContext.houseId);
+      const sm=el('wizSuccessMsg'); if(sm){ sm.textContent='✓ Flock '+fl.flock_number+' created and set as active.'; sm.style.display='block'; }
+      if(nb){ nb.disabled=true; nb.textContent='Done'; } el('btnWizBack').style.display='none';
+      routeEggView();
+      setTimeout(()=> hideModal('modalNewFlock'), 2200);
+    } catch(e){ showErr('wizErr5','Error: '+e.message); if(nb){nb.disabled=false;nb.textContent='✓ Create Flock';} }
+  }
+
+  el('btnFsNewFlock')?.addEventListener('click', ()=>{ if(!AppContext.houseId){ alert('Select a farm and house first.'); return; } openWizard(); });
+
+  // ── 3C: Simple Egg Mode UI ────────────────────────────────────
+  // Route egg view based on AppContext.eggMode
+  function routeEggView(){
+    const mode = AppContext.eggMode || 'detailed';
+    const v1=el('viewEggs'), v2=el('viewEggsL2'), vs=el('viewEggsSimple');
+    if(!v1||!vs) return;
+    if(mode==='simple'){
+      const lay=Number(localStorage.getItem('ff_eggLayout'))||1;
+      if(v1) v1.style.display='none';
+      if(v2) v2.style.display='none';
+      if(vs) vs.style.display='block';
+      buildSimplePenCards();
+    }
+    // If detailed, leave existing layout logic alone — showTab handles it
+  }
+
+  // Track simple mode active pen
+  let simplePen = 1;
+  let simpleFloorPen = 1;
+  let simpleDefectPen = 1;
+
+  function buildSimplePenCards(){
+    const container = el('simplePenCards'); if(!container) return;
+    // Determine pen list: use pens from AppContext if known, else default 1-4
+    const numPens = 4; // will be dynamic in Phase 3B when we read flock pens
+    container.innerHTML='';
+
+    // Floor pen buttons
+    const floorBtns = el('simpleFloorPenBtns'); if(floorBtns) floorBtns.innerHTML='';
+    const defBtns = el('simpleDefectPenBtns'); if(defBtns) defBtns.innerHTML='';
+
+    for(let p=1; p<=numPens; p++){
+      // Main pen card
+      const card=document.createElement('div');
+      card.className='simplePenCard'+(p===simplePen?' activePen':'');
+      card.id='simplePenCard'+p;
+
+      const d = (typeof dateEl !== 'undefined') ? (dateEl.value || '') : '';
+      const nestCount = (typeof records !== 'undefined') ? records.filter(r=>r.date===d&&r.pen===p&&r.kind==='egg_nest').reduce((a,r)=>a+Number(r.count??1),0) : 0;
+
+      card.innerHTML=`
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <span class="simplePenCardTitle" style="color:${['#b91c1c','#7c3aed','#0369a1','#065f46'][p-1]||'var(--accent)'};">PEN ${p}</span>
+          <span style="font-size:11px;font-weight:700;color:var(--muted);" id="simplePenHD${p}">—</span>
+        </div>
+        <div class="simplePenCount" id="simplePenCount${p}">${nestCount}</div>
+        <div class="simplePenBtns">
+          <button class="btn btnSmall" onclick="window._simpleAddEggs(${p},1)" style="font-size:16px;padding:10px 14px;">+1</button>
+          <button class="btn btnSmall" onclick="window._simpleAddEggs(${p},5)" style="font-size:16px;padding:10px 14px;">+5</button>
+          <button class="btn btnSmall" onclick="window._simpleAddEggs(${p},10)" style="font-size:16px;padding:10px 14px;">+10</button>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <input type="number" min="0" placeholder="qty" id="simpleQtyInput${p}" style="flex:1;font-size:15px;padding:8px 10px;border-radius:9px;border:1px solid var(--border);background:var(--card);color:var(--text);">
+          <button class="btn btnSmall" onclick="window._simpleAddQty(${p})" style="white-space:nowrap;">Add</button>
+          <button class="btn btnSmall" onclick="window._simpleUndoNest(${p})" style="color:var(--muted);">Undo</button>
+        </div>`;
+      card.addEventListener('click', ()=>{ simplePen=p; refreshSimpleActive(); });
+      container.appendChild(card);
+
+      // Floor + defect pen buttons
+      if(floorBtns){
+        const fb=document.createElement('button'); fb.className='btn btnSmall'+(p===simpleFloorPen?' selectedBlue':''); fb.id='simpleFloorPenBtn'+p; fb.textContent='Pen '+p;
+        fb.onclick=()=>{ simpleFloorPen=p; refreshSimpleFloorActive(); }; floorBtns.appendChild(fb);
+      }
+      if(defBtns){
+        const db=document.createElement('button'); db.className='btn btnSmall'+(p===simpleDefectPen?' selectedBlue':''); db.id='simpleDefPenBtn'+p; db.textContent='Pen '+p;
+        db.onclick=()=>{ simpleDefectPen=p; refreshSimpleDefActive(); }; defBtns.appendChild(db);
+      }
+    }
+    refreshSimpleTotals();
+    refreshSimpleHD();
+  }
+
+  function refreshSimpleActive(){
+    for(let p=1;p<=4;p++){
+      const c=el('simplePenCard'+p); if(!c) continue;
+      c.classList.toggle('activePen', p===simplePen);
+    }
+  }
+  function refreshSimpleFloorActive(){
+    for(let p=1;p<=4;p++){ const b=el('simpleFloorPenBtn'+p); if(b) b.classList.toggle('selectedBlue',p===simpleFloorPen); }
+  }
+  function refreshSimpleDefActive(){
+    for(let p=1;p<=4;p++){ const b=el('simpleDefPenBtn'+p); if(b) b.classList.toggle('selectedBlue',p===simpleDefectPen); }
+  }
+
+  function refreshSimpleTotals(){
+    if(typeof records==='undefined'||typeof dateEl==='undefined') return;
+    const d=dateEl.value||'';
+    let nest=0, floor=0, def=0;
+    for(let p=1;p<=4;p++){
+      const pc=records.filter(r=>r.date===d&&r.pen===p&&r.kind==='egg_nest').reduce((a,r)=>a+Number(r.count??1),0);
+      const ce=el('simplePenCount'+p); if(ce) ce.textContent=String(Math.max(0,pc));
+      nest+=pc;
+    }
+    floor=records.filter(r=>r.date===d&&r.kind==='egg_floor').reduce((a,r)=>a+Number(r.count??1),0);
+    def=records.filter(r=>r.date===d&&r.kind==='egg_defect').reduce((a,r)=>a+Number(r.count??1),0);
+    setText('simpleTotNest', Math.max(0,nest));
+    setText('simpleTotFloor', Math.max(0,floor));
+    setText('simpleTotDef', Math.max(0,def));
+    setText('simpleTotAll', Math.max(0,nest+floor));
+    setText('simpleFloorTotal', Math.max(0,floor));
+  }
+
+  function refreshSimpleHD(){
+    if(typeof records==='undefined'||typeof dateEl==='undefined'||typeof getPlacedTotal==='undefined') return;
+    const d=dateEl.value||'';
+    for(let p=1;p<=4;p++){
+      const eggs=records.filter(r=>r.date===d&&r.pen===p&&(r.kind==='egg_nest'||r.kind==='egg_floor')).reduce((a,r)=>a+Number(r.count??1),0);
+      const placed=getPlacedTotal(p);
+      const aliveF = placed.f; // simplified — full inventory calc comes in 3B
+      const hdEl=el('simplePenHD'+p);
+      if(hdEl) hdEl.textContent = aliveF>0 ? (eggs/aliveF*100).toFixed(1)+'%' : '—';
+    }
+  }
+
+  // Global simple mode actions
+  window._simpleAddEggs = function(pen, count){
+    if(typeof logEvent==='undefined'||typeof baseMeta==='undefined') return;
+    simplePen=pen; refreshSimpleActive();
+    const evt={...baseMeta(), kind:'egg_nest', pen, count};
+    window._flockContextStamp(evt);
+    logEvent(evt, `Simple +${count} eggs Pen ${pen}`);
+    refreshSimpleTotals(); refreshSimpleHD();
+  };
+  window._simpleAddQty = function(pen){
+    const n=parseInt(el('simpleQtyInput'+pen)?.value||'0',10);
+    if(!n||n<=0) return;
+    window._simpleAddEggs(pen,n);
+    const qi=el('simpleQtyInput'+pen); if(qi) qi.value='';
+  };
+  window._simpleUndoNest = function(pen){
+    if(typeof records==='undefined'||typeof dateEl==='undefined') return;
+    const d=dateEl.value||'';
+    for(let i=records.length-1;i>=0;i--){
+      const r=records[i];
+      if(r.kind!=='egg_nest'||r.pen!==pen||r.date!==d) continue;
+      if(Number(r.count??1)<=0) continue;
+      const undo={...r, id:crypto?.randomUUID?crypto.randomUUID():('id_'+Date.now()+'_'+Math.random().toString(16).slice(2)), tsISO:new Date().toISOString(), count:-1, action:'undo'};
+      window._flockContextStamp(undo);
+      if(typeof logEvent==='function') logEvent(undo,'Undo simple egg Pen '+pen);
+      refreshSimpleTotals(); refreshSimpleHD(); return;
+    }
+  };
+
+  // Wire simple floor eggs
+  el('simpleFloorPlus')?.addEventListener('click', ()=>{
+    if(typeof logEvent==='undefined'||typeof baseMeta==='undefined') return;
+    const evt={...baseMeta(), kind:'egg_floor', pen:simpleFloorPen, count:1};
+    window._flockContextStamp(evt);
+    logEvent(evt, `Floor egg Pen ${simpleFloorPen}`);
+    refreshSimpleTotals();
+  });
+  el('simpleFloorUndo')?.addEventListener('click', ()=>{
+    if(typeof records==='undefined') return;
+    const d=(typeof dateEl!=='undefined')?dateEl.value:'';
+    for(let i=records.length-1;i>=0;i--){ const r=records[i]; if(r.kind!=='egg_floor'||r.date!==d||Number(r.count??1)<=0) continue;
+      const u={...r,id:crypto?.randomUUID?crypto.randomUUID():('id_'+Date.now()),count:-1,action:'undo'};
+      window._flockContextStamp(u); if(typeof logEvent==='function') logEvent(u,'Undo floor egg'); refreshSimpleTotals(); return; }
+  });
+
+  // Wire simple defect buttons
+  [['simpleDefDirty','dirty'],['simpleDefCrack','cracked'],['simpleDefDouble','double'],['simpleDefCull','cull']].forEach(([id,type])=>{
+    el(id)?.addEventListener('click', ()=>{
+      if(typeof logEvent==='undefined'||typeof baseMeta==='undefined') return;
+      const evt={...baseMeta(), kind:'egg_defect', pen:simpleDefectPen, defectType:type, count:1};
+      window._flockContextStamp(evt); logEvent(evt, `Defect ${type} Pen ${simpleDefectPen}`); refreshSimpleTotals();
+    });
+  });
+  el('simpleDefUndo')?.addEventListener('click', ()=>{
+    if(typeof records==='undefined') return;
+    const d=(typeof dateEl!=='undefined')?dateEl.value:'';
+    for(let i=records.length-1;i>=0;i--){ const r=records[i]; if(r.kind!=='egg_defect'||r.date!==d||Number(r.count??1)<=0) continue;
+      const u={...r,id:crypto?.randomUUID?crypto.randomUUID():('id_'+Date.now()),count:-1,action:'undo'};
+      window._flockContextStamp(u); if(typeof logEvent==='function') logEvent(u,'Undo defect'); refreshSimpleTotals(); return; }
+  });
+
+  // Patch showTab to route egg view and refresh simple totals when navigating
+  const _origShowTab=window.showTab;
+  window.showTab=function(tabId){
+    _origShowTab(tabId);
+    if(tabId==='tabFlockSetup'){ updateContextBar(); loadFarms(); }
+    if(tabId==='tabEggs'||tabId==='tabOps'){
+      if(AppContext.eggMode==='simple') routeEggView();
+    }
+    if(tabId==='brandHome'){ updateDashFlockStrip(); }
+  };
+
+  // Patch renderDashboard to also update strip
+  const _origRenderDash=window.renderDashboard;
+  if(typeof _origRenderDash==='function'){
+    window.renderDashboard=function(){
+      _origRenderDash();
+      updateDashFlockStrip();
+    };
+  }
+
+  // Patch logEvent to stamp flock context and refresh simple totals
+  const _origLogEvent=window.logEvent;
+  if(typeof _origLogEvent==='function'){
+    window.logEvent=function(evt,label){
+      window._flockContextStamp(evt);
+      _origLogEvent(evt,label);
+      if(AppContext.eggMode==='simple'){ refreshSimpleTotals(); refreshSimpleHD(); }
+    };
+  }
+
+})(); // end Phase 3 module
 
 
 })();
